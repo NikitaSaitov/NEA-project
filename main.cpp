@@ -1610,6 +1610,61 @@ class Position{
             }
             return 0;
         }
+	
+        void mergeMoveArray(Move* array, int leftIndex, int middleIndex, int rightIndex){
+
+            int leftArraySize = middleIndex - leftIndex + 1;
+            int rightArraySize = rightIndex - middleIndex;
+            Move leftArray[leftArraySize], rightArray[rightArraySize];
+
+            for(int i = 0; i < leftArraySize; i++){
+                leftArray[i] = array[leftIndex + i];
+            }
+
+            for(int j = 0; j < rightArraySize; j++){
+                rightArray[j] = array[middleIndex + j + 1];
+            }
+
+            int i = 0, j = 0, k = leftIndex;
+
+            while (i < leftArraySize && j < rightArraySize){
+
+                if(scoreMove(leftArray[i]) > scoreMove(rightArray[j])){
+                    array[k] = leftArray[i];
+                    i++;
+                }else{
+                    array[k] = rightArray[j];
+                    j++;
+                }
+
+                k++;
+            }
+
+            while(i < leftArraySize){
+                array[k] = leftArray[i];
+                i++; k++;
+            }
+
+            while(j < rightArraySize){
+                array[k] = rightArray[j];
+                j++; k++;
+            }
+        }
+
+        void mergeSortMoveArray(Move* array, int leftIndex, int rightIndex){
+
+            if(leftIndex < rightIndex){
+
+                int middleIndex = leftIndex + (rightIndex - leftIndex) / 2;
+                mergeSortMoveArray(array, leftIndex, middleIndex);
+                mergeSortMoveArray(array, middleIndex + 1, rightIndex);
+                mergeMoveArray(array, leftIndex, middleIndex, rightIndex);
+            }
+        }
+
+        void sortMoves(MoveList& moveList){
+            mergeSortMoveArray(moveList.getMoves(), 0, moveList.getCount() - 1);
+        }
 };
 
 int main(){
