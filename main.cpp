@@ -1503,8 +1503,8 @@ class Game{
          
         Board currentBoard;
         Move killerMoves[2][64];
-        Move historyMoves[12][64];
-        Move bestMove;
+	Move bestMove;
+        int historyMoves[12][64];
         int ply, searchNodes;
 
     public:
