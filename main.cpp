@@ -1440,6 +1440,46 @@ class Board{
             }
         }
 
+	void merge(Move* moveArray, int leftIndex, int middleIndex, int rightIndex){
+
+            int leftArraySize = middleIndex - leftIndex + 1;
+            int rightArraySize = rightIndex - middleIndex;
+            Move leftArray[leftArraySize], rightArray[rightArraySize];
+
+            for(int i = 0; i < leftArraySize; i++){
+                leftArray[i] = moveArray[leftIndex + i];
+            }
+
+            for(int j = 0; j < rightArraySize; j++){
+                rightArray[j] = moveArray[middleIndex + j + 1];
+            }
+
+            int i = 0, j = 0, k = leftIndex;
+
+            while (i < leftArraySize && j < rightArraySize){
+
+                if(scoreMove(leftArray[i]) > scoreMove(rightArray[j])){
+                    moveArray[k] = leftArray[i];
+                    i++;
+                }else{
+                    moveArray[k] = rightArray[j];
+                    j++;
+                }
+
+                k++;
+            }
+
+            while(i < leftArraySize){
+                moveArray[k] = leftArray[i];
+                i++; k++;
+            }
+
+            while(j < rightArraySize){
+                moveArray[k] = rightArray[j];
+                j++; k++;
+            }
+        }
+	
         void mergeSort(Move* moveArray, int leftIndex, int rightIndex){
 
             if(leftIndex < rightIndex){
@@ -1657,6 +1697,7 @@ int main(){
     //Heap memory is nessesary; max static memory size = 1MB, rookAttacks moveArray > 2MB
     AttackTable* pAttackTable = new AttackTable(); 
 
+    Game game(pAttackTable);
 
     //Cleanup heap memory
     delete pAttackTable;
