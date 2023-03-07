@@ -405,7 +405,7 @@ class AttackTable{
             for(int i = 0; i < 100000000; i++){
 
                 U64 magicNumber  = getRandomFewBits();
-                //Skip the magic if the value returned by the multiplication is too large
+                //Skip the magic if the magic index is too large
                 if(getPopulationCount((attackMask * magicNumber) & 0xFF00000000000000) < 6){
                     continue;
                 }
@@ -633,7 +633,7 @@ class Move{
 
     public:
 
-        //Default constructor to initialize the Moves array in the moveList class
+        //Default constructor to initialize the Moves moveArray in the moveList class
         Move(){}
 
         //Initialzie a move
@@ -668,18 +668,22 @@ class Move{
             return promotedPiece;
         }
 
+        //Return true if the move is a capture
         bool isCapture(){
             return capture;
         }
 
+        //Return true if the pawn has been pushed two squares
         bool isDoublePawnPush(){
             return doublePawnPush;
         }
 
+        //Return true if the move is an en passant
         bool isEnPassant(){
             return enPassant;
         }
 
+        //Return true if the move is a castlingg
         bool isCastling(){
             return castling;
         }
@@ -690,7 +694,6 @@ class Move{
         }
 };
 
-//TODO: adequate comments
 //********MoveList********
 class MoveList{
 
@@ -733,20 +736,24 @@ class MoveList{
         }
 };
 
-//TODO: adequate comments
 //********Position********
-class Position{
+class Board{
 
     private:
         
+        AttackTable* pAttackTable;
         U64 bitboards[12];
         U64 occupancies[3];
+
         int sideToMove = NO_SIDE_TO_MOVE;
         int enPassantSquareIndex = NO_SQUARE_INDEX;
         int canCastle = 0; 
-        int ply = 0, nodes = 0;
+
+        int ply = 0, searchNodes = 0;
+
         Move bestMove;
-        AttackTable* pAttackTable;
+        Move killerMoves[2][64];
+        int historyMoves[12][64];
 
         void resetBitboards(){
             memset(bitboards, 0, sizeof(bitboards)); 
@@ -784,7 +791,9 @@ class Position{
 
     public:
 
-        Position(std::string fenString, AttackTable* pAttackTable){
+        Board(){}
+
+        Board(std::string fenString, AttackTable* pAttackTable){
 
             this->pAttackTable = pAttackTable;
             loadFenString(fenString);
@@ -839,7 +848,7 @@ class Position{
             std::cout << "EnPassant square: " << ((enPassantSquareIndex != NO_SQUARE_INDEX) ? pSQUARE_INDEX_TO_COORDINATES[enPassantSquareIndex] : "no square") << '\n';
         };
 
-        void appendPseudolegalMoves(MoveList& containerMoveList){
+        void appendPseudolegalMoves(MoveList& moveList){
 
             int startSquareIndex, targetSquareIndex;
             U64 currentPieceBitboard, currentPieceAttacks;
@@ -864,16 +873,16 @@ class Position{
                                 
                                 if(startSquareIndex >= a7 && startSquareIndex <= h7){
 
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteQueen, 0, 0, 0, 0);
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteRook, 0, 0, 0, 0);
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteBishop, 0, 0, 0, 0);
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteKnight, 0, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteQueen, 0, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteRook, 0, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteBishop, 0, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteKnight, 0, 0, 0, 0);
 
                                 }else{
 
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
                                     if((startSquareIndex >= a2 && startSquareIndex <= h2) && !getBit(occupancies[both], targetSquareIndex - 8)){
-                                        containerMoveList.addMove(startSquareIndex, targetSquareIndex - 8, currentPiece, 0, 0, 1, 0, 0);
+                                        moveList.addMove(startSquareIndex, targetSquareIndex - 8, currentPiece, 0, 0, 1, 0, 0);
                                     }
 
                                 }
@@ -888,13 +897,13 @@ class Position{
 
                                 if(startSquareIndex >= a7 && startSquareIndex <= h7){
 
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteQueen, 1, 0, 0, 0);
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteRook, 1, 0, 0, 0);
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteBishop, 1, 0, 0, 0);
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteKnight, 1, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteQueen, 1, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteRook, 1, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteBishop, 1, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteKnight, 1, 0, 0, 0);
 
                                 }else{
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
                                 }
                                 popBit(currentPieceAttacks, targetSquareIndex);
                             }
@@ -905,7 +914,7 @@ class Position{
                                 U64 enPassantAttacks = pAttackTable->getPawnAttacks(sideToMove, startSquareIndex) & (1ULL << enPassantSquareIndex);
                                 if(enPassantAttacks){
                                     int enPassantTarget = getLS1BIndex(enPassantAttacks);
-                                    containerMoveList.addMove(startSquareIndex, enPassantTarget, currentPiece, 0, 1, 0, 1, 0);
+                                    moveList.addMove(startSquareIndex, enPassantTarget, currentPiece, 0, 1, 0, 1, 0);
                                 }
                             }
                             popBit(currentPieceBitboard, startSquareIndex);
@@ -917,14 +926,14 @@ class Position{
 
                         if(canCastle & K){
                             if(!getBit(occupancies[both], f1) && !getBit(occupancies[both], g1) && !isSquareAttacked(e1, black) && !isSquareAttacked(f1, black)){
-                                containerMoveList.addMove(e1, g1, currentPiece, 0, 0, 0, 0, 1);
+                                moveList.addMove(e1, g1, currentPiece, 0, 0, 0, 0, 1);
                             }
                         }
 
                         if(canCastle & Q){
                            if(!getBit(occupancies[both], d1) && !getBit(occupancies[both], c1) && !getBit(occupancies[both], b1) 
                            && !isSquareAttacked(e1, black) && !isSquareAttacked(d1, black)){
-                                containerMoveList.addMove(e1, c1, currentPiece, 0, 0, 0, 0, 1);
+                                moveList.addMove(e1, c1, currentPiece, 0, 0, 0, 0, 1);
                             } 
                         }
                     }
@@ -945,15 +954,15 @@ class Position{
                                 
                                 if(startSquareIndex >= a2 && startSquareIndex <= h2){
 
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackQueen, 0, 0, 0, 0);
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackRook, 0, 0, 0, 0);
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackBishop, 0, 0, 0, 0);
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackKnight, 0, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackQueen, 0, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackRook, 0, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackBishop, 0, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackKnight, 0, 0, 0, 0);
                                     
                                 }else{
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
                                     if((startSquareIndex >= a7 && startSquareIndex <= h7) && !getBit(occupancies[both], targetSquareIndex + 8)){
-                                        containerMoveList.addMove(startSquareIndex, targetSquareIndex + 8, currentPiece, 0, 0, 1, 0, 0);
+                                        moveList.addMove(startSquareIndex, targetSquareIndex + 8, currentPiece, 0, 0, 1, 0, 0);
                                     }
                                 }
                             }
@@ -967,13 +976,13 @@ class Position{
 
                                 if(startSquareIndex >= a2 && startSquareIndex <= h2){
 
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackQueen, 1, 0, 0, 0);
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackRook, 1, 0, 0, 0);
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackBishop, 1, 0, 0, 0);
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackKnight, 1, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackQueen, 1, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackRook, 1, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackBishop, 1, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackKnight, 1, 0, 0, 0);
 
                                 }else{
-                                    containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
+                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
                                 }
                                 popBit(currentPieceAttacks, targetSquareIndex);
                             }
@@ -984,7 +993,7 @@ class Position{
                                 U64 enPassantAttacks = pAttackTable->getPawnAttacks(sideToMove, startSquareIndex) & (1ULL << enPassantSquareIndex);
                                 if(enPassantAttacks){
                                     int enPassantTarget = getLS1BIndex(enPassantAttacks);
-                                    containerMoveList.addMove(startSquareIndex, enPassantTarget, currentPiece, 0, 1, 0, 1, 0);
+                                    moveList.addMove(startSquareIndex, enPassantTarget, currentPiece, 0, 1, 0, 1, 0);
                                 }
                             }
                             popBit(currentPieceBitboard, startSquareIndex);
@@ -996,14 +1005,14 @@ class Position{
 
                         if(canCastle & k){
                             if(!getBit(occupancies[both], f8) && !getBit(occupancies[both], g8) && !isSquareAttacked(e8, white) && !isSquareAttacked(f8, white)){
-                                containerMoveList.addMove(e8, g8, currentPiece, 0, 0, 0, 0, 1);
+                                moveList.addMove(e8, g8, currentPiece, 0, 0, 0, 0, 1);
                             }
                         }
 
                         if(canCastle & q){
                            if(!getBit(occupancies[both], d8) && !getBit(occupancies[both], c8) && !getBit(occupancies[both], b8) 
                            && !isSquareAttacked(e8, white) && !isSquareAttacked(d8, white)){
-                                containerMoveList.addMove(e8, c8, currentPiece, 0, 0, 0, 0, 1);
+                                moveList.addMove(e8, c8, currentPiece, 0, 0, 0, 0, 1);
                             } 
                         }
                     }
@@ -1023,10 +1032,10 @@ class Position{
 
                             //Quiet moves
                             if(!getBit(((sideToMove == white) ? occupancies[black] : occupancies[white]), targetSquareIndex)){
-                                containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
+                                moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
                             }else{
                                 //Captures
-                                containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
+                                moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
                             }
                             popBit(currentPieceAttacks, targetSquareIndex);
                         }
@@ -1048,10 +1057,10 @@ class Position{
 
                             //Quiet moves
                             if(!getBit(((sideToMove == white) ? occupancies[black] : occupancies[white]), targetSquareIndex)){
-                                containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
+                                moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
                             }else{
                                 //Captures
-                                containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
+                                moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
                             }
                             popBit(currentPieceAttacks, targetSquareIndex);
                         }
@@ -1073,10 +1082,10 @@ class Position{
 
                             //Quiet moves
                             if(!getBit(((sideToMove == white) ? occupancies[black] : occupancies[white]), targetSquareIndex)){
-                                containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
+                                moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
                             }else{
                                 //Captures
-                                containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
+                                moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
                             }
                             popBit(currentPieceAttacks, targetSquareIndex);
                         }
@@ -1098,10 +1107,10 @@ class Position{
 
                             //Quiet
                             if(!getBit(((sideToMove == white) ? occupancies[black] : occupancies[white]), targetSquareIndex)){
-                                containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
+                                moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
                             }else{
                                 //Captures
-                                containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
+                                moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
                             }
                             popBit(currentPieceAttacks, targetSquareIndex);
                         }
@@ -1123,10 +1132,10 @@ class Position{
 
                             //Quiet moves
                             if(!getBit(((sideToMove == white) ? occupancies[black] : occupancies[white]), targetSquareIndex)){
-                                containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
+                                moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
                             }else{
                                 //Captures
-                                containerMoveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
+                                moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
                             }
                             popBit(currentPieceAttacks, targetSquareIndex);
                         }
@@ -1136,7 +1145,90 @@ class Position{
             }
         }
 
-        int makeMove(Move& move, bool capturesOnly){
+        void loadFenString(const std::string& fenString){
+
+            resetBitboards();
+            resetOcuupancies();
+
+            int squareIndex = 0;
+            enPassantSquareIndex = NO_SQUARE_INDEX;           
+
+            for(int index = 0; index < fenString.length(); index++){
+
+                char symbol = fenString[index];
+
+                if(isalpha(symbol)){   
+                    
+                    //Parsing the board state
+                    if(squareIndex < 64){
+
+                        setBit(bitboards[ASCII_TO_PIECE_INDEX[symbol]], squareIndex);
+                        squareIndex++;
+
+                    //Parsing other data (castling, en passant etc.) 
+                    }else{
+
+                        switch (symbol)
+                        {
+                        case 'w': sideToMove = white; break;
+                        case 'b': sideToMove = black; break;
+                        case 'K': canCastle |= K; break;
+                        case 'Q': canCastle |= Q; break;
+                        case 'k': canCastle |= k; break;
+                        case 'q': canCastle |= q; break;
+                        }
+
+                    }
+
+                    //En passant square
+                    if((fenString[index - 1] == ' ') && (isdigit(fenString[index + 1]))){
+
+                        int file = symbol - 'a';
+                        int rank = 8 - (fenString[index + 1] - '0');
+                        enPassantSquareIndex = rank * 8 + file;
+
+                    }
+
+                }else if(isdigit(symbol)){
+                    squareIndex += (symbol - '0');
+                }
+            }
+            populateOccupancies();
+        }
+
+        void loadMoveString(const std::string& moveString){
+
+            int startSquareIndex = (moveString[0] - 'a') + (8 - (moveString[1] - '0')) * 8;
+            int targetSquareIndex = (moveString[2] - 'a') + (8 - (moveString[3] - '0')) * 8;
+
+            MoveList possibleMoves;
+            appendPseudolegalMoves(possibleMoves);
+
+            for(int moveIndex = 0; moveIndex < possibleMoves.getCount(); moveIndex++){
+                Move move = possibleMoves.getMoves()[moveIndex];
+                if(startSquareIndex == move.getStartSquareIndex() && targetSquareIndex == move.getTargetSquareIndex()){
+
+                    if((moveString[3] == '8' && moveString[4] == 'P') || (moveString[3] == '1' && moveString[4] == 'p')){
+                        return;
+                    }
+                    if(moveString[4]){
+                        if((PIECE_INDEX_TO_ASCII[move.getPromotedPiece()] != moveString[4]) || (PIECE_INDEX_TO_ASCII[move.getPromotedPiece() - 6] != moveString[4])){
+                            return;
+                        }
+                    }
+                    
+                    if(makeMove(move, false)){
+                       return; 
+                    }
+                }
+            }
+        }
+
+        bool kingInCheck(){
+            return isSquareAttacked((sideToMove == white) ? getLS1BIndex(bitboards[whiteKing]) : getLS1BIndex(bitboards[blackKing]), sideToMove ^ 1);
+        }
+
+        int makeMove(Move move, bool capturesOnly){
 
             if(!capturesOnly){
 
@@ -1229,9 +1321,7 @@ class Position{
                 resetOcuupancies();
                 populateOccupancies();
 
-                sideToMove ^= 1;
-
-                if(isSquareAttacked((sideToMove == white) ? getLS1BIndex(bitboards[blackKing]) : getLS1BIndex(bitboards[whiteKing]), sideToMove)){
+                if(kingInCheck()){
 
                     memcpy(bitboards, tempBitboards, sizeof(tempBitboards));
                     memcpy(occupancies, tempOccupancies, sizeof(tempOccupancies));
@@ -1250,159 +1340,6 @@ class Position{
                 }
             }
             return 0;
-        }
-
-        void loadFenString(const std::string& fenString){
-
-            resetBitboards();
-            resetOcuupancies();
-
-            int squareIndex = 0;
-            enPassantSquareIndex = NO_SQUARE_INDEX;           
-
-            for(int index = 0; index < fenString.length(); index++){
-
-                char symbol = fenString[index];
-
-                if(isalpha(symbol)){   
-                    
-                    //Parsing the board state
-                    if(squareIndex < 64){
-
-                        setBit(bitboards[ASCII_TO_PIECE_INDEX[symbol]], squareIndex);
-                        squareIndex++;
-
-                    //Parsing other data (castling, en passant etc.) 
-                    }else{
-
-                        switch (symbol)
-                        {
-                        case 'w': sideToMove = white; break;
-                        case 'b': sideToMove = black; break;
-                        case 'K': canCastle |= K; break;
-                        case 'Q': canCastle |= Q; break;
-                        case 'k': canCastle |= k; break;
-                        case 'q': canCastle |= q; break;
-                        }
-
-                    }
-
-                    //En passant square
-                    if((fenString[index - 1] == ' ') && (isdigit(fenString[index + 1]))){
-
-                        int file = symbol - 'a';
-                        int rank = 8 - (fenString[index + 1] - '0');
-                        enPassantSquareIndex = rank * 8 + file;
-
-                    }
-
-                }else if(isdigit(symbol)){
-                    squareIndex += (symbol - '0');
-                }
-            }
-            populateOccupancies();
-        }
-
-        void loadMoveString(const std::string& moveString){
-
-            int startSquareIndex = (moveString[0] - 'a') + (8 - (moveString[1] - '0')) * 8;
-            int targetSquareIndex = (moveString[2] - 'a') + (8 - (moveString[3] - '0')) * 8;
-
-            MoveList possibleMoves;
-            appendPseudolegalMoves(possibleMoves);
-
-            for(int moveIndex = 0; moveIndex < possibleMoves.getCount(); moveIndex++){
-                Move move = possibleMoves.getMoves()[moveIndex];
-                if(startSquareIndex == move.getStartSquareIndex() && targetSquareIndex == move.getTargetSquareIndex()){
-
-                    if((moveString[3] == '8' && moveString[4] == 'P') || (moveString[3] == '1' && moveString[4] == 'p')){
-                        return;
-                    }
-                    if(moveString[4]){
-                        if((PIECE_INDEX_TO_ASCII[move.getPromotedPiece()] != moveString[4]) || (PIECE_INDEX_TO_ASCII[move.getPromotedPiece() - 6] != moveString[4])){
-                            return;
-                        }
-                    }
-                    
-                    if(makeMove(move, false)){
-                       return; 
-                    }
-                }
-            }
-        }
-
-        U64 perft(int depth){
-
-            U64 nodes = 0ULL;
-
-            if(depth == 0){
-                return 1ULL;
-            }
-
-            MoveList moveList;
-            appendPseudolegalMoves(moveList);
-
-            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
-                
-                U64 tempBitboards[12], tempOccupancies[3];
-                int tempSideToMove = sideToMove, tempEnPassantSquareIndex = enPassantSquareIndex, tempCanCastle = canCastle;
-                memcpy(tempBitboards, bitboards, sizeof(tempBitboards));
-                memcpy(tempOccupancies, occupancies, sizeof(tempOccupancies));
-
-                if(!makeMove(moveList.getMoves()[moveIndex], false)){
-                    continue;
-                }
-
-                nodes += perft(depth - 1);
-
-                memcpy(bitboards, tempBitboards, sizeof(tempBitboards));
-                memcpy(occupancies, tempOccupancies, sizeof(tempOccupancies));
-                sideToMove = tempSideToMove;
-                enPassantSquareIndex = tempEnPassantSquareIndex;
-                canCastle = tempCanCastle; 
-            }
-            return nodes;
-        }
-
-        void perftDebugInfo(int depth){
-
-            std::cout << "\n    Performance test\n\n";
-
-            U64 nodes = 0ULL;
-            MoveList moveList;
-            appendPseudolegalMoves(moveList);
-
-            auto start = std::chrono::high_resolution_clock::now();
-
-            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
-
-                U64 tempBitboards[12], tempOccupancies[3];
-                int tempSideToMove = sideToMove, tempEnPassantSquareIndex = enPassantSquareIndex, tempCanCastle = canCastle;
-                memcpy(tempBitboards, bitboards, sizeof(tempBitboards));
-                memcpy(tempOccupancies, occupancies, sizeof(tempOccupancies));
-
-                if(!makeMove(moveList.getMoves()[moveIndex], false)){
-                    continue;
-                }
-
-                U64 currentNodes = perft(depth - 1);
-                nodes += currentNodes;
-
-                memcpy(bitboards, tempBitboards, sizeof(tempBitboards));
-                memcpy(occupancies, tempOccupancies, sizeof(tempOccupancies));
-                sideToMove = tempSideToMove;
-                enPassantSquareIndex = tempEnPassantSquareIndex;
-                canCastle = tempCanCastle; 
-
-                std::cout << "Move: "<< pSQUARE_INDEX_TO_COORDINATES[moveList.getMoves()[moveIndex].getStartSquareIndex()] << pSQUARE_INDEX_TO_COORDINATES[moveList.getMoves()[moveIndex].getTargetSquareIndex()]; 
-                std::cout << ((moveList.getMoves()[moveIndex].getPromotedPiece() != 0) ? PIECE_INDEX_TO_ASCII[moveList.getMoves()[moveIndex].getPromotedPiece()] : ' ');
-                std::cout << "\tnodes: " << currentNodes << '\n';
-
-            }
-
-            std::cout << "\nDepth: " << depth;
-            std::cout << "\nTotal number of nodes: " << nodes;
-            std::cout << "\nTest time: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " mircoseconds\n\n";
         }
 
         int staticEvaluate(){
@@ -1460,126 +1397,6 @@ class Position{
             return (sideToMove == white) ? score : -score;
         }
 
-        int quiescene(int alpha, int beta){
-
-            int evaluation = staticEvaluate();
-
-            if(evaluation >= beta){
-                return beta;
-            }
-
-            if(evaluation > alpha){
-                alpha = evaluation;
-            }
-
-            nodes++;
-
-            MoveList moveList;
-            appendPseudolegalMoves(moveList);
-
-            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
-
-                U64 tempBitboards[12], tempOccupancies[3];
-                int tempSideToMove = sideToMove, tempEnPassantSquareIndex = enPassantSquareIndex, tempCanCastle = canCastle;
-                memcpy(tempBitboards, bitboards, sizeof(tempBitboards));
-                memcpy(tempOccupancies, occupancies, sizeof(tempOccupancies));
-
-                ply++;
-
-                if(!makeMove(moveList.getMoves()[moveIndex], true)){
-                    ply--;
-                    continue;
-                }
-
-                int score = -quiescene(-beta, -alpha);
-                ply--;
-
-                memcpy(bitboards, tempBitboards, sizeof(tempBitboards));
-                memcpy(occupancies, tempOccupancies, sizeof(tempOccupancies));
-                sideToMove = tempSideToMove;
-                enPassantSquareIndex = tempEnPassantSquareIndex;
-                canCastle = tempCanCastle; 
-
-                if(score >= beta){
-                    return beta;
-                }
-
-                if(score > alpha){
-                    alpha = score;
-                }
-            }
-            return alpha;
-        }
-
-        int negamax(int alpha, int beta, int depth){
-
-            if(depth == 0){
-                return quiescene(alpha, beta);
-            }
-
-            nodes++;
-
-            bool kingInCheck = isSquareAttacked((sideToMove == white) ? getLS1BIndex(bitboards[whiteKing]) : getLS1BIndex(bitboards[blackKing]), sideToMove ^ 1);
-            int legalMoves = 0;
-
-            int oldAlpha = alpha;
-            Move currentBestMove;
-            
-            MoveList moveList;
-            appendPseudolegalMoves(moveList);
-
-            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
-
-                U64 tempBitboards[12], tempOccupancies[3];
-                int tempSideToMove = sideToMove, tempEnPassantSquareIndex = enPassantSquareIndex, tempCanCastle = canCastle;
-                memcpy(tempBitboards, bitboards, sizeof(tempBitboards));
-                memcpy(tempOccupancies, occupancies, sizeof(tempOccupancies));
-
-                ply++;
-
-                if(!makeMove(moveList.getMoves()[moveIndex], false)){
-                    ply--;
-                    continue;
-                }
-
-                legalMoves++;
-                int score = -quiescene(-beta, -alpha);
-                ply--;
-
-                memcpy(bitboards, tempBitboards, sizeof(tempBitboards));
-                memcpy(occupancies, tempOccupancies, sizeof(tempOccupancies));
-                sideToMove = tempSideToMove;
-                enPassantSquareIndex = tempEnPassantSquareIndex;
-                canCastle = tempCanCastle; 
-
-                if(score >= beta){
-                    return beta;
-                }
-
-                if(score > alpha){
-                    alpha = score;
-                    if(!ply){
-                        currentBestMove = moveList.getMoves()[moveIndex];
-                    }
-                }
-            }
-
-            if(!legalMoves){
-
-                if(kingInCheck){
-                    return CHECKMATE_SCORE + ply;
-                }else{
-                    return STALEMATE_SCORE;
-                }
-            }
-
-            if(oldAlpha != alpha){
-                bestMove = currentBestMove;
-            }
-
-            return alpha;
-        }
-
         int scoreMove(Move& move){
 
             if(move.isCapture()){
@@ -1607,74 +1424,239 @@ class Position{
                 }
 
                 return MVV_LVA[move.getPiece()][targetPiece];
-            }
-            return 0;
-        }
-	
-        void mergeMoveArray(Move* array, int leftIndex, int middleIndex, int rightIndex){
 
-            int leftArraySize = middleIndex - leftIndex + 1;
-            int rightArraySize = rightIndex - middleIndex;
-            Move leftArray[leftArraySize], rightArray[rightArraySize];
+            }else if(killerMoves[0][ply].getStartSquareIndex() == move.getStartSquareIndex() && killerMoves[0][ply].getTargetSquareIndex() == move.getTargetSquareIndex()){
 
-            for(int i = 0; i < leftArraySize; i++){
-                leftArray[i] = array[leftIndex + i];
-            }
+                return 9000;
 
-            for(int j = 0; j < rightArraySize; j++){
-                rightArray[j] = array[middleIndex + j + 1];
-            }
+            }else if(killerMoves[1][ply].getStartSquareIndex() == move.getStartSquareIndex() && killerMoves[1][ply].getTargetSquareIndex() == move.getTargetSquareIndex()){
+                
+                return 8000;
 
-            int i = 0, j = 0, k = leftIndex;
+            }else{
 
-            while (i < leftArraySize && j < rightArraySize){
+                return historyMoves[move.getPiece()][move.getTargetSquareIndex()];
 
-                if(scoreMove(leftArray[i]) > scoreMove(rightArray[j])){
-                    array[k] = leftArray[i];
-                    i++;
-                }else{
-                    array[k] = rightArray[j];
-                    j++;
-                }
-
-                k++;
-            }
-
-            while(i < leftArraySize){
-                array[k] = leftArray[i];
-                i++; k++;
-            }
-
-            while(j < rightArraySize){
-                array[k] = rightArray[j];
-                j++; k++;
             }
         }
 
-        void mergeSortMoveArray(Move* array, int leftIndex, int rightIndex){
+        void mergeSort(Move* moveArray, int leftIndex, int rightIndex){
 
             if(leftIndex < rightIndex){
 
                 int middleIndex = leftIndex + (rightIndex - leftIndex) / 2;
-                mergeSortMoveArray(array, leftIndex, middleIndex);
-                mergeSortMoveArray(array, middleIndex + 1, rightIndex);
-                mergeMoveArray(array, leftIndex, middleIndex, rightIndex);
+                mergeSort(moveArray, leftIndex, middleIndex);
+                mergeSort(moveArray, middleIndex + 1, rightIndex);
+                merge(moveArray, leftIndex, middleIndex, rightIndex);
             }
         }
 
         void sortMoves(MoveList& moveList){
-            mergeSortMoveArray(moveList.getMoves(), 0, moveList.getCount() - 1);
+            mergeSort(moveList.getMoves(), 0, moveList.getCount() - 1);
+        }
+
+};
+
+class Game{
+
+    private:
+         
+        Board currentBoard;
+        Move killerMoves[2][64];
+        Move historyMoves[12][64];
+        Move bestMove;
+        int ply, searchNodes;
+
+    public:
+
+        Game(AttackTable* pAttackTable){
+            currentBoard = Board(START_POSITION_FEN, pAttackTable);
+            ply = 0, searchNodes = 0;
+        }
+
+        U64 perft(int depth){
+
+            U64 nodes = 0ULL;
+
+            if(depth == 0){
+                return 1ULL;
+            }
+
+            MoveList moveList;
+            currentBoard.appendPseudolegalMoves(moveList);
+
+            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
+                
+                Board temporaryBoard = currentBoard;
+
+                if(!currentBoard.makeMove(moveList.getMoves()[moveIndex], false)){
+                    continue;
+                }
+
+                nodes += perft(depth - 1);
+                currentBoard = temporaryBoard;
+            }
+            return nodes;
+        }
+
+        void perftDebugInfo(int depth){
+
+            std::cout << "\n    Performance test\n\n";
+
+            U64 nodes = 0ULL;
+            MoveList moveList;
+            currentBoard.appendPseudolegalMoves(moveList);
+
+            auto start = std::chrono::high_resolution_clock::now();
+
+            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
+
+                Board temporaryBoard = currentBoard;
+
+                if(!currentBoard.makeMove(moveList.getMoves()[moveIndex], false)){
+                    continue;
+                }
+
+                U64 currentNodes = perft(depth - 1);
+                nodes += currentNodes;
+
+                currentBoard = temporaryBoard;
+
+                std::cout << "Move: "<< pSQUARE_INDEX_TO_COORDINATES[moveList.getMoves()[moveIndex].getStartSquareIndex()] << pSQUARE_INDEX_TO_COORDINATES[moveList.getMoves()[moveIndex].getTargetSquareIndex()]; 
+                std::cout << ((moveList.getMoves()[moveIndex].getPromotedPiece() != 0) ? PIECE_INDEX_TO_ASCII[moveList.getMoves()[moveIndex].getPromotedPiece()] : ' ');
+                std::cout << "\tnodes: " << currentNodes << '\n';
+
+            }
+
+            std::cout << "\nDepth: " << depth;
+            std::cout << "\nTotal number of nodes: " << nodes;
+            std::cout << "\nTest time: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " mircoseconds\n\n";
+        }
+
+        int quiescene(int alpha, int beta){
+
+            searchNodes++;
+
+            int evaluation = currentBoard.staticEvaluate();
+
+            if(evaluation >= beta){
+                return beta;
+            }
+
+            if(evaluation > alpha){
+                alpha = evaluation;
+            }
+
+            MoveList moveList;
+            currentBoard.appendPseudolegalMoves(moveList);
+            currentBoard.sortMoves(moveList);
+
+            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
+
+                Board temporaryBoard = currentBoard;
+
+                ply++;
+
+                if(!currentBoard.makeMove(moveList.getMoves()[moveIndex], true)){
+                    ply--;
+                    continue;
+                }
+
+                int score = -quiescene(-beta, -alpha);
+                ply--;
+
+                currentBoard = temporaryBoard;
+
+                if(score >= beta){
+                    return beta;
+                }
+
+                if(score > alpha){
+                    alpha = score;
+                }
+            }
+            return alpha;
+        }
+
+        int negamax(int alpha, int beta, int depth){
+
+            if(depth == 0){
+                return quiescene(alpha, beta);
+            }
+
+            searchNodes++;
+
+            bool inCheck = currentBoard.kingInCheck();
+
+            if(inCheck){
+                depth++;
+            }
+
+            int oldAlpha = alpha;
+            Move currentBestMove;
+            
+            MoveList moveList;
+            currentBoard.appendPseudolegalMoves(moveList);
+            currentBoard.sortMoves(moveList);
+
+            int legalMoves = 0;
+
+            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
+
+                Board temporaryBoard = currentBoard;
+                ply++;
+
+                if(!currentBoard.makeMove(moveList.getMoves()[moveIndex], false)){
+                    ply--;
+                    continue;
+                }
+
+                legalMoves++;
+                int score = -negamax(-beta, -alpha, depth - 1);
+                ply--;
+                currentBoard = temporaryBoard;
+
+                if(score >= beta){
+
+                    killerMoves[1][ply] = killerMoves[0][ply];
+                    killerMoves[0][ply] = moveList.getMoves()[moveIndex];
+                    return beta;
+                }
+
+                if(score > alpha){
+
+                    historyMoves[moveList.getMoves()[moveIndex].getPiece()][moveList.getMoves()[moveIndex].getTargetSquareIndex()];
+
+                    alpha = score;
+                    if(!ply){
+                        currentBestMove = moveList.getMoves()[moveIndex];
+                    }
+                }
+            }
+
+            if(!legalMoves){
+
+                if(inCheck){
+                    return CHECKMATE_SCORE + ply;
+                }else{
+                    return STALEMATE_SCORE;
+                }
+            }
+
+            if(oldAlpha != alpha){
+                bestMove = currentBestMove;
+            }
+
+            return alpha;
         }
 };
 
+
 int main(){
 
-    //Heap memory is nessesary; max static memory size = 1MB, rookAttacks array > 2MB
+    //Heap memory is nessesary; max static memory size = 1MB, rookAttacks moveArray > 2MB
     AttackTable* pAttackTable = new AttackTable(); 
 
-    Position position(START_POSITION_FEN, pAttackTable);
-    position.loadFenString(START_POSITION_FEN);
-    position.printBoardState();
 
     //Cleanup heap memory
     delete pAttackTable;
