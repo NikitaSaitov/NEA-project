@@ -22,7 +22,7 @@ enum {
 
 /*
 Convert a square into the squareIndex from the black piece perspective
-Used by the engine in the staticEvaluate() function
+Used in the staticEvaluate() function
 */
 const int OPPOSITE_SIDE[64] = {
 	a1, b1, c1, d1, e1, f1, g1, h1,
