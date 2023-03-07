@@ -1397,102 +1397,12 @@ class Board{
             return (sideToMove == white) ? score : -score;
         }
 
-        int scoreMove(Move& move){
-
-            if(move.isCapture()){
-
-                int targetPiece = whitePawn;
-                int startPiece, endPiece;
-
-                if(sideToMove == white){
-
-                    startPiece = blackPawn;
-                    endPiece = blackKing;
-
-                }else if(sideToMove == black){
-
-                    startPiece = whitePawn;
-                    endPiece = whiteKing;
-                }
-
-                for(int currentPiece = startPiece; currentPiece <= endPiece; currentPiece++){
-
-                    if(getBit(bitboards[currentPiece], move.getTargetSquareIndex())){
-                        targetPiece = currentPiece;
-                        break;
-                    }
-                }
-
-                return MVV_LVA[move.getPiece()][targetPiece];
-
-            }else if(killerMoves[0][ply].getStartSquareIndex() == move.getStartSquareIndex() && killerMoves[0][ply].getTargetSquareIndex() == move.getTargetSquareIndex()){
-
-                return 9000;
-
-            }else if(killerMoves[1][ply].getStartSquareIndex() == move.getStartSquareIndex() && killerMoves[1][ply].getTargetSquareIndex() == move.getTargetSquareIndex()){
-                
-                return 8000;
-
-            }else{
-
-                return historyMoves[move.getPiece()][move.getTargetSquareIndex()];
-
-            }
+        U64* getBitboards(){
+            return bitboards;
         }
 
-	void merge(Move* moveArray, int leftIndex, int middleIndex, int rightIndex){
-
-            int leftArraySize = middleIndex - leftIndex + 1;
-            int rightArraySize = rightIndex - middleIndex;
-            Move leftArray[leftArraySize], rightArray[rightArraySize];
-
-            for(int i = 0; i < leftArraySize; i++){
-                leftArray[i] = moveArray[leftIndex + i];
-            }
-
-            for(int j = 0; j < rightArraySize; j++){
-                rightArray[j] = moveArray[middleIndex + j + 1];
-            }
-
-            int i = 0, j = 0, k = leftIndex;
-
-            while (i < leftArraySize && j < rightArraySize){
-
-                if(scoreMove(leftArray[i]) > scoreMove(rightArray[j])){
-                    moveArray[k] = leftArray[i];
-                    i++;
-                }else{
-                    moveArray[k] = rightArray[j];
-                    j++;
-                }
-
-                k++;
-            }
-
-            while(i < leftArraySize){
-                moveArray[k] = leftArray[i];
-                i++; k++;
-            }
-
-            while(j < rightArraySize){
-                moveArray[k] = rightArray[j];
-                j++; k++;
-            }
-        }
-	
-        void mergeSort(Move* moveArray, int leftIndex, int rightIndex){
-
-            if(leftIndex < rightIndex){
-
-                int middleIndex = leftIndex + (rightIndex - leftIndex) / 2;
-                mergeSort(moveArray, leftIndex, middleIndex);
-                mergeSort(moveArray, middleIndex + 1, rightIndex);
-                merge(moveArray, leftIndex, middleIndex, rightIndex);
-            }
-        }
-
-        void sortMoves(MoveList& moveList){
-            mergeSort(moveList.getMoves(), 0, moveList.getCount() - 1);
+        int getSideToMove(){
+            return sideToMove;
         }
 
 };
@@ -1573,6 +1483,104 @@ class Game{
             std::cout << "\nTest time: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " mircoseconds\n\n";
         }
 
+        int scoreMove(Move& move){
+
+            if(move.isCapture()){
+
+                int targetPiece = whitePawn;
+                int startPiece, endPiece;
+
+                if(currentBoard.getSideToMove() == white){
+
+                    startPiece = blackPawn;
+                    endPiece = blackKing;
+
+                }else if(currentBoard.getSideToMove() == black){
+
+                    startPiece = whitePawn;
+                    endPiece = whiteKing;
+                }
+
+                for(int currentPiece = startPiece; currentPiece <= endPiece; currentPiece++){
+
+                    if(getBit(currentBoard.getBitboards()[currentPiece], move.getTargetSquareIndex())){
+                        targetPiece = currentPiece;
+                        break;
+                    }
+                }
+
+                return MVV_LVA[move.getPiece()][targetPiece] + 10000;
+
+            }else if(killerMoves[0][ply].getStartSquareIndex() == move.getStartSquareIndex() && killerMoves[0][ply].getTargetSquareIndex() == move.getTargetSquareIndex()){
+
+                return 9000;
+
+            }else if(killerMoves[1][ply].getStartSquareIndex() == move.getStartSquareIndex() && killerMoves[1][ply].getTargetSquareIndex() == move.getTargetSquareIndex()){
+                
+                return 8000;
+
+            }else{
+
+                return historyMoves[move.getPiece()][move.getTargetSquareIndex()];
+
+            }
+        }
+
+        void merge(Move* moveArray, int leftIndex, int middleIndex, int rightIndex){
+
+            int leftArraySize = middleIndex - leftIndex + 1;
+            int rightArraySize = rightIndex - middleIndex;
+            Move leftArray[leftArraySize], rightArray[rightArraySize];
+
+            for(int i = 0; i < leftArraySize; i++){
+                leftArray[i] = moveArray[leftIndex + i];
+            }
+
+            for(int j = 0; j < rightArraySize; j++){
+                rightArray[j] = moveArray[middleIndex + j + 1];
+            }
+
+            int i = 0, j = 0, k = leftIndex;
+
+            while (i < leftArraySize && j < rightArraySize){
+
+                if(scoreMove(leftArray[i]) > scoreMove(rightArray[j])){
+                    moveArray[k] = leftArray[i];
+                    i++;
+                }else{
+                    moveArray[k] = rightArray[j];
+                    j++;
+                }
+
+                k++;
+            }
+
+            while(i < leftArraySize){
+                moveArray[k] = leftArray[i];
+                i++; k++;
+            }
+
+            while(j < rightArraySize){
+                moveArray[k] = rightArray[j];
+                j++; k++;
+            }
+        }
+
+        void mergeSort(Move* moveArray, int leftIndex, int rightIndex){
+
+            if(leftIndex < rightIndex){
+
+                int middleIndex = leftIndex + (rightIndex - leftIndex) / 2;
+                mergeSort(moveArray, leftIndex, middleIndex);
+                mergeSort(moveArray, middleIndex + 1, rightIndex);
+                merge(moveArray, leftIndex, middleIndex, rightIndex);
+            }
+        }
+
+        void sortMoves(MoveList& moveList){
+            mergeSort(moveList.getMoves(), 0, moveList.getCount() - 1);
+        }
+	
         int quiescene(int alpha, int beta){
 
             searchNodes++;
