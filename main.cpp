@@ -1407,7 +1407,7 @@ class Board{
 
 };
 
-class Game{
+class Position{
 
     private:
          
@@ -1419,7 +1419,7 @@ class Game{
 
     public:
 
-        Game(AttackTable* pAttackTable){
+        Postion(AttackTable* pAttackTable){
             currentBoard = Board(START_POSITION_FEN, pAttackTable);
             ply = 0, searchNodes = 0;
         }
@@ -1705,7 +1705,7 @@ int main(){
     //Heap memory is nessesary; max static memory size = 1MB, rookAttacks moveArray > 2MB
     AttackTable* pAttackTable = new AttackTable(); 
 
-    Game game(pAttackTable);
+    Position position(pAttackTable);
 
     //Cleanup heap memory
     delete pAttackTable;
