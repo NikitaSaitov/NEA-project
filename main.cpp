@@ -1405,11 +1405,13 @@ class Position{
     private:
          
         Board currentBoard;
-        Move killerMoves[2][64];
+        Move killerMoves[2][MAX_SEARCH_DEPTH];
         int historyMoves[12][64];
 
-        Move pvTable[64][64];
-        int pvLength[64];
+        Move pvTable[MAX_SEARCH_DEPTH][MAX_SEARCH_DEPTH];
+        int pvLength[MAX_SEARCH_DEPTH];
+        bool pvFollow;
+        bool pvScore = false;
 
         Move bestMove;
         int ply, searchNodes;
@@ -1480,7 +1482,27 @@ class Position{
             std::cout << "\nTest time: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " mircoseconds\n\n";
         }
 
+        void allowPVScore(MoveList& moveList){
+
+            pvFollow = false;
+
+            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
+                if(moveList.getMoves()[moveIndex] == pvTable[0][ply]){
+                    pvScore = true;
+                    pvFollow = true;
+                }
+            }  
+
+        }
+
         int scoreMove(Move& move){
+
+            if(pvScore && pvTable[0][ply] == move){
+                
+                pvScore = false;
+                return 20000;
+                
+            }
 
             if(move.isCapture()){
 
@@ -1628,6 +1650,10 @@ class Position{
                 return quiescene(alpha, beta);
             }
 
+            if(ply > MAX_SEARCH_DEPTH - 1){
+                return currentBoard.staticEvaluate();
+            }
+
             searchNodes++;
             bool inCheck = currentBoard.isKingInCheck();
 
@@ -1640,6 +1666,11 @@ class Position{
             
             MoveList moveList;
             currentBoard.appendPseudolegalMoves(moveList);
+
+            if(pvFollow){
+                allowPVScore(moveList);
+            }
+
             sortMoves(moveList);
 
             int legalMoves = 0;
@@ -1713,12 +1744,18 @@ class Position{
         }
 
         void printPV(){
-            currentBoard.printState();
-            std::cout << '\n';
             for(int i = 0; i < pvLength[0]; i++){
                 pvTable[0][i].printMove();
                 std::cout << ' ';
             }
+        }
+
+        void clearAll(){
+            searchNodes = 0;
+            memset(killerMoves, 0, sizeof(killerMoves));
+            memset(historyMoves, 0, sizeof(historyMoves));
+            memset(pvTable, 0, sizeof(pvTable));
+            memset(pvLength, 0, sizeof(pvLength));
         }
 
         Move getBestMove(){
@@ -1730,20 +1767,35 @@ class Position{
         }
 };
 
-
-int main(){
+void searchPosition(std::string fenString, int depth){
 
     //Heap memory is nessesary; max static memory size = 1MB, rookAttacks moveArray > 2MB
     AttackTable* pAttackTable = new AttackTable(); 
 
-    Position position(START_POSITION_FEN, pAttackTable);
-    position.negamax(-50000, 50000, 7);
-    std::cout << "Search Nodes: " << position.getSearchNodes() << "\nBest Move: ";
+    Position position(fenString, pAttackTable);
+    position.getBoard().printState();
+
+    for(int currentDepth = 1; currentDepth <= depth; currentDepth++){
+
+        std::cout << "\nEvaluation: " << position.negamax(-50000, 50000, currentDepth);
+        std::cout << "\nSearch Nodes: " << position.getSearchNodes();
+        std::cout << "\nPrincipled variation: ";
+        position.printPV();
+        std::cout << '\n';
+
+    }
+
+    std::cout << "\nBEST MOVE: ";
     position.getBestMove().printMove();
 
     //Cleanup heap memory
     delete pAttackTable;
 
+}
+
+int main(){
+
+    searchPosition(START_POSITION_FEN, 7);  
     return 0;
 
 }
