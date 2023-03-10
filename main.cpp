@@ -1684,16 +1684,6 @@ int main(){
     position.negamax(-50000, 50000, 8);
     position.makeMove(position.getBestMove(), false);
     position.printBoardState();
-    position.negamax(-50000, 50000, 8);
-    position.makeMove(position.getBestMove(), false);
-    position.printBoardState();
-    position.negamax(-50000, 50000, 8);
-    position.makeMove(position.getBestMove(), false);
-    position.printBoardState();
-    position.negamax(-50000, 50000, 8);
-    position.makeMove(position.getBestMove(), false);
-    position.printBoardState();
-
 
     //Cleanup heap memory
     delete pAttackTable;
