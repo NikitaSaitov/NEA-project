@@ -1410,7 +1410,7 @@ class Position{
 
         Move pvTable[MAX_SEARCH_DEPTH][MAX_SEARCH_DEPTH];
         int pvLength[MAX_SEARCH_DEPTH];
-        bool pvFollow;
+        bool pvFollow = true;
         bool pvScore = false;
 
         Move bestMove;
@@ -1488,8 +1488,10 @@ class Position{
 
             for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
                 if(moveList.getMoves()[moveIndex] == pvTable[0][ply]){
+
                     pvScore = true;
                     pvFollow = true;
+
                 }
             }  
 
@@ -1506,7 +1508,7 @@ class Position{
 
             if(move.isCapture()){
 
-                int targetPiece, startPiece, endPiece;
+                int targetPiece = 0, startPiece, endPiece;
 
                 if(currentBoard.getSideToMove() == white){
 
@@ -1751,7 +1753,8 @@ class Position{
         }
 
         void clearAll(){
-            searchNodes = 0;
+            bestMove = Move();
+            searchNodes = 0, ply = 0;
             memset(killerMoves, 0, sizeof(killerMoves));
             memset(historyMoves, 0, sizeof(historyMoves));
             memset(pvTable, 0, sizeof(pvTable));
@@ -1767,7 +1770,7 @@ class Position{
         }
 };
 
-void searchPosition(std::string fenString, int depth){
+void search(std::string fenString, int depth){
 
     //Heap memory is nessesary; max static memory size = 1MB, rookAttacks moveArray > 2MB
     AttackTable* pAttackTable = new AttackTable(); 
@@ -1795,7 +1798,7 @@ void searchPosition(std::string fenString, int depth){
 
 int main(){
 
-    searchPosition(START_POSITION_FEN, 7);  
+    search(START_POSITION_FEN, 7);  
     return 0;
 
 }
