@@ -59,7 +59,7 @@ inline void popBit(U64& bitboard, int squareIndex){
 }
 
 //Get a bit at the given squareIndex from a given bitboard 
-inline int getBit(const U64& bitboard, int squareIndex){
+inline int getBit(U64 bitboard, int squareIndex){
     return (bitboard & (1ULL << squareIndex))? 1 : 0;
 }
 
@@ -1410,8 +1410,8 @@ class Position{
 
         Move pvTable[MAX_SEARCH_DEPTH][MAX_SEARCH_DEPTH];
         int pvLength[MAX_SEARCH_DEPTH];
-        bool pvFollow = true;
         bool pvScore = false;
+        bool pvFollow;
 
         Move bestMove;
         int ply, searchNodes;
@@ -1664,6 +1664,7 @@ class Position{
             }
 
             int oldAlpha = alpha;
+            int legalMoves = 0;
             Move currentBestMove;
             
             MoveList moveList;
@@ -1674,8 +1675,7 @@ class Position{
             }
 
             sortMoves(moveList);
-
-            int legalMoves = 0;
+            int movesSearched = 0;
 
             for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
 
@@ -1689,9 +1689,38 @@ class Position{
                 }
 
                 legalMoves++;
-                int score = -negamax(-beta, -alpha, depth - 1);
+
+                int score;
+
+                if(movesSearched == 0){
+                    score = -negamax(-beta, -alpha, depth - 1);
+                }else{
+
+                    if(
+                        movesSearched >= FULL_DEPTH_MOVES &&
+                        depth >= REDUCTION_LIMIT &&
+                        inCheck == false &&
+                        !currentMove.isCapture() &&
+                        !currentMove.getPromotedPiece()
+                    ){
+                        score = -negamax(-alpha - 1, -alpha, depth - 2);
+                    }else{
+                        score = alpha + 1;
+                    }
+
+                    if(score > alpha){
+
+                        score = -negamax(-alpha - 1, -alpha, depth - 1);
+
+                        if((score > alpha) && (score < beta)){
+                            score = -negamax(-beta, -alpha, depth - 1);
+                        }
+                    }
+                }
+
                 ply--;
                 currentBoard = temporaryBoard;
+                movesSearched;
 
                 if(score >= beta){
                     
@@ -1753,12 +1782,14 @@ class Position{
         }
 
         void clearAll(){
+
             bestMove = Move();
             searchNodes = 0, ply = 0;
             memset(killerMoves, 0, sizeof(killerMoves));
             memset(historyMoves, 0, sizeof(historyMoves));
             memset(pvTable, 0, sizeof(pvTable));
             memset(pvLength, 0, sizeof(pvLength));
+
         }
 
         Move getBestMove(){
@@ -1798,7 +1829,7 @@ void search(std::string fenString, int depth){
 
 int main(){
 
-    search(START_POSITION_FEN, 7);  
+    search(START_POSITION_FEN, 9);  
     return 0;
 
 }
