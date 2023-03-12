@@ -1147,6 +1147,10 @@ class Board{
             return isSquareAttacked((sideToMove == white) ? getLS1BIndex(bitboards[whiteKing]) : getLS1BIndex(bitboards[blackKing]), sideToMove ^ 1);
         }
 
+        void switchSideToMove(){
+            sideToMove ^= 1;
+        }
+
         int makeMove(Move move){
 
             U64 tempBitboards[12], tempOccupancies[3];
@@ -1249,7 +1253,7 @@ class Board{
                 return 0;
             }
 
-            sideToMove ^= 1;
+            switchSideToMove();
             return 1;
         }
 
@@ -1392,6 +1396,10 @@ class Board{
             return sideToMove;
         }
 
+        void resetEnPassantSquareIndex(){
+            enPassantSquareIndex = NO_SQUARE_INDEX;
+        }
+
         U64* getBitboards(){
             return bitboards;
         }
@@ -1532,10 +1540,15 @@ class Position{
                 return MVV_LVA[move.getPiece()][targetPiece] + 10000;
 
             }else if(killerMoves[0][ply] == move){
+
                 return 9000;
+
             }else if(killerMoves[1][ply] == move){
+
                 return 8000;
+
             }else{
+
                 return historyMoves[move.getPiece()][move.getTargetSquareIndex()];
             }
         }
@@ -1663,9 +1676,24 @@ class Position{
                 depth++;
             }
 
-            int oldAlpha = alpha;
             int legalMoves = 0;
             Move currentBestMove;
+
+            if(depth >= REDUCTION_LIMIT && !inCheck && ply){
+
+                Board nullMoveTemporaryBoard = currentBoard;
+                currentBoard.switchSideToMove();
+                currentBoard.resetEnPassantSquareIndex();
+
+                int nullMoveScore = -negamax(-beta, -beta + 1, depth - REDUCTION_LIMIT);
+
+                currentBoard = nullMoveTemporaryBoard;
+
+                if(nullMoveScore >= beta){
+                    return beta;
+                }
+
+            }
             
             MoveList moveList;
             currentBoard.appendPseudolegalMoves(moveList);
@@ -1749,7 +1777,7 @@ class Position{
                     pvLength[ply] = pvLength[ply + 1];
 
                     if(!ply){
-                        currentBestMove = currentMove;
+                        bestMove = currentMove;
                     }
                 }
             }
@@ -1761,10 +1789,6 @@ class Position{
                 }else{
                     return STALEMATE_SCORE;
                 }
-            }
-
-            if(oldAlpha != alpha){
-                bestMove = currentBestMove;
             }
 
             return alpha;
@@ -1781,7 +1805,7 @@ class Position{
             }
         }
 
-        void clearAll(){
+        void resetSearchVariables(){
 
             bestMove = Move();
             searchNodes = 0, ply = 0;
@@ -1821,6 +1845,7 @@ void search(std::string fenString, int depth){
 
     std::cout << "\nBEST MOVE: ";
     position.getBestMove().printMove();
+    std::cout << "\n\n";
 
     //Cleanup heap memory
     delete pAttackTable;
@@ -1829,7 +1854,7 @@ void search(std::string fenString, int depth){
 
 int main(){
 
-    search(START_POSITION_FEN, 9);  
+    search(START_POSITION_FEN, 8);  
     return 0;
 
 }
