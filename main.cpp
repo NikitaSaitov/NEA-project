@@ -138,6 +138,52 @@ U64 getRandomFewBits(){
     return getRandom() & getRandom() & getRandom();
 }
 
+//********Move encoding********
+
+inline int createMove(int startSquareIndex, int targetSquareIndex, int piece, int promotedPiece, bool isCapture, bool isDoublePawnPush, bool isEnPassant, bool isCastling){
+    return startSquareIndex | (targetSquareIndex << 6) | (piece << 12) | (promotedPiece << 16) | (isCapture << 20) | (isDoublePawnPush << 21) | (isEnPassant << 22) | (isCastling << 23);
+}
+
+inline int getStartSquareIndex(int move){
+    return move & 0x3f;
+}
+
+inline int getTargetSquareIndex(int move){
+    return (move & 0xfc0) >> 6;
+}
+
+inline int getPiece(int move){
+    return (move & 0xf000) >> 12;
+}
+
+inline int getPromotedPiece(int move){
+    return (move & 0xf0000) >> 16;
+}
+
+inline bool isCapture(int move){
+    return move & 0x100000;
+}
+
+inline bool isDoublePawnPush(int move){
+    return move & 0x200000;
+}
+
+inline bool isEnPassant(int move){
+    return move & 0x400000;
+}
+
+inline bool isCastling(int move){
+    return move & 0x800000;
+}
+
+inline void printMove(int move){
+    if(getPromotedPiece(move)){
+       std::cout << pSQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(move)] << pSQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(move)] << PIECE_INDEX_TO_ASCII[getPromotedPiece(move)];
+    }else{
+       std::cout << pSQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(move)] << pSQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(move)];
+    }
+}
+
 //********Attack Table********
 class AttackTable{
 
@@ -617,125 +663,27 @@ class AttackTable{
         }  
 };
 
-//********Move********
-class Move{
-
-    private:
-
-        int startSquareIndex;
-        int targetSquareIndex;
-        int piece;
-        int promotedPiece;
-        bool capture;
-        bool doublePawnPush;
-        bool enPassant;
-        bool castling;
-
-    public:
-
-        //Default constructor to initialize the Moves moveArray in the moveList class
-        Move(){}
-
-        //Initialzie a move
-        Move(int startSquareIndex, int targetSquareIndex, int piece, int promotedPiece, bool capture, bool doublePawnPush, bool enPassant, bool castling){
-            this->startSquareIndex = startSquareIndex;
-            this->targetSquareIndex = targetSquareIndex;
-            this->piece = piece;
-            this->promotedPiece = promotedPiece;
-            this->capture = capture;
-            this->doublePawnPush = doublePawnPush;
-            this->enPassant = enPassant;
-            this->castling = castling;
-        }
-
-        bool operator== (const Move& other){
-            return startSquareIndex == other.startSquareIndex && targetSquareIndex == other.targetSquareIndex && piece == other.piece && promotedPiece == other.promotedPiece;
-        }
-
-        //Get the start square index
-        int getStartSquareIndex(){
-            return startSquareIndex;
-        }
-
-        //Get the target square index
-        int getTargetSquareIndex(){
-            return targetSquareIndex;
-        }
-
-        //Get the enumerated piece
-        int getPiece(){
-            return piece;
-        }
-
-        //Get the enumerated promoted piece
-        int getPromotedPiece(){
-            return promotedPiece;
-        }
-
-        //Return true if the move is a capture
-        bool isCapture(){
-            return capture;
-        }
-
-        //Return true if the pawn has been pushed two squares
-        bool isDoublePawnPush(){
-            return doublePawnPush;
-        }
-
-        //Return true if the move is an en passant
-        bool isEnPassant(){
-            return enPassant;
-        }
-
-        //Return true if the move is a castlingg
-        bool isCastling(){
-            return castling;
-        }
-
-        //Print the move
-        void printMove(){
-            std::cout << pSQUARE_INDEX_TO_COORDINATES[startSquareIndex] << pSQUARE_INDEX_TO_COORDINATES[targetSquareIndex];
-        }
-};
 
 //********MoveList********
 class MoveList{
 
     private:
 
-        Move moves[256];
+        int moves[256];
         int count = 0;
 
     public:   
 
         void addMove(int startSquareIndex, int targetSquareIndex, int piece, int promotedPiece, bool capture, bool doublePawnPush, bool enPassant, bool castling){
-            moves[count] = Move(startSquareIndex, targetSquareIndex, piece, promotedPiece, capture, doublePawnPush, enPassant, castling);
+            moves[count] = createMove(startSquareIndex, targetSquareIndex, piece, promotedPiece, capture, doublePawnPush, enPassant, castling);
             count++;
-        }
-        
-        void printMoves(){
-
-            std::cout << "Move \tPiece\tCapture\tDouble\tEnPassant\tCastling" << "\n\n";
-
-            for(int moveIndex = 0; moveIndex < count; moveIndex++){
-
-                std::cout << pSQUARE_INDEX_TO_COORDINATES[moves[moveIndex].getStartSquareIndex()] << pSQUARE_INDEX_TO_COORDINATES[moves[moveIndex].getTargetSquareIndex()]; 
-                std::cout << ((moves[moveIndex].getPromotedPiece() != 0) ? PIECE_INDEX_TO_ASCII[moves[moveIndex].getPromotedPiece()] : ' ') << '\t';
-                std::cout << PIECE_INDEX_TO_ASCII[moves[moveIndex].getPiece()] << "    \t";
-                std::cout << moves[moveIndex].isCapture() << "      \t";
-                std::cout << moves[moveIndex].isDoublePawnPush() << "    \t";
-                std::cout << moves[moveIndex].isEnPassant() << "        \t";
-                std::cout << moves[moveIndex].isCastling() << '\n';
-
-            }
-            std::cout << '\n' << "Total number of moves: " << count << "\n\n";
         }
 
         int getCount(){
             return count;
         }        
 
-        Move* getMoves(){
+        int* getMoves(){
             return moves;
         }
 };
@@ -1151,22 +1099,22 @@ class Board{
             sideToMove ^= 1;
         }
 
-        int makeMove(Move move){
+        int makeMove(int move){
 
             U64 tempBitboards[12], tempOccupancies[3];
             int tempEnPassantSquareIndex = enPassantSquareIndex, tempCanCastle = canCastle;
             memcpy(tempBitboards, bitboards, sizeof(tempBitboards));
             memcpy(tempOccupancies, occupancies, sizeof(tempOccupancies));
 
-            int piece = move.getPiece();
-            int startSquareIndex = move.getStartSquareIndex();
-            int targetSquareIndex = move.getTargetSquareIndex();
-            int promotedPiece = move.getPromotedPiece();
+            int piece = getPiece(move);
+            int startSquareIndex = getStartSquareIndex(move);
+            int targetSquareIndex = getTargetSquareIndex(move);
+            int promotedPiece = getPromotedPiece(move);
 
             popBit(bitboards[piece], startSquareIndex);
             setBit(bitboards[piece], targetSquareIndex);
 
-            if(move.isCapture()){
+            if(isCapture(move)){
 
                 int startPiece, endPiece;
 
@@ -1197,16 +1145,16 @@ class Board{
 
             }
 
-            if(move.isEnPassant()){
+            if(isEnPassant(move)){
                 (sideToMove == white) ? popBit(bitboards[blackPawn], targetSquareIndex + 8) : popBit(bitboards[whitePawn], targetSquareIndex - 8);
             }
             enPassantSquareIndex = NO_SQUARE_INDEX;
 
-            if(move.isDoublePawnPush()){
+            if(isDoublePawnPush(move)){
                 (sideToMove == white) ? (enPassantSquareIndex = targetSquareIndex + 8) : (enPassantSquareIndex = targetSquareIndex - 8);
             }
 
-            if(move.isCastling()){
+            if(isCastling(move)){
 
                 switch(targetSquareIndex){
 
@@ -1318,16 +1266,16 @@ class Board{
 
             for(int moveIndex = 0; moveIndex < possibleMoves.getCount(); moveIndex++){
 
-                Move move = possibleMoves.getMoves()[moveIndex];
+                int move = possibleMoves.getMoves()[moveIndex];
 
-                if(startSquareIndex == move.getStartSquareIndex() && targetSquareIndex == move.getTargetSquareIndex()){
+                if(startSquareIndex == getStartSquareIndex(move) && targetSquareIndex == getTargetSquareIndex(move)){
 
                     if((moveString[3] == '8' && moveString[4] == 'P') || (moveString[3] == '1' && moveString[4] == 'p')){
                         return;
                     }
 
                     if(moveString[4]){
-                        if((PIECE_INDEX_TO_ASCII[move.getPromotedPiece()] != moveString[4]) || (PIECE_INDEX_TO_ASCII[move.getPromotedPiece() - 6] != moveString[4])){
+                        if((PIECE_INDEX_TO_ASCII[getPromotedPiece(move)] != moveString[4]) || (PIECE_INDEX_TO_ASCII[getPromotedPiece(move) - 6] != moveString[4])){
                             return;
                         }
                     }
@@ -1404,7 +1352,6 @@ class Board{
             return bitboards;
         }
 
-
 };
 
 //********Position********
@@ -1413,15 +1360,15 @@ class Position{
     private:
          
         Board currentBoard;
-        Move killerMoves[2][MAX_SEARCH_DEPTH];
+        int killerMoves[2][MAX_SEARCH_DEPTH];
         int historyMoves[12][64];
 
-        Move pvTable[MAX_SEARCH_DEPTH][MAX_SEARCH_DEPTH];
+        int pvTable[MAX_SEARCH_DEPTH][MAX_SEARCH_DEPTH];
         int pvLength[MAX_SEARCH_DEPTH];
         bool pvScore = false;
         bool pvFollow;
 
-        Move bestMove;
+        int bestMove;
         int ply, searchNodes;
 
     public:
@@ -1468,9 +1415,11 @@ class Position{
 
             for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
 
+                int currentMove = moveList.getMoves()[moveIndex];
+
                 Board temporaryBoard = currentBoard;
 
-                if(!currentBoard.makeMove(moveList.getMoves()[moveIndex])){
+                if(!currentBoard.makeMove(currentMove)){
                     continue;
                 }
 
@@ -1479,8 +1428,8 @@ class Position{
 
                 currentBoard = temporaryBoard;
 
-                std::cout << "Move: "<< pSQUARE_INDEX_TO_COORDINATES[moveList.getMoves()[moveIndex].getStartSquareIndex()] << pSQUARE_INDEX_TO_COORDINATES[moveList.getMoves()[moveIndex].getTargetSquareIndex()]; 
-                std::cout << ((moveList.getMoves()[moveIndex].getPromotedPiece() != 0) ? PIECE_INDEX_TO_ASCII[moveList.getMoves()[moveIndex].getPromotedPiece()] : ' ');
+                std::cout << "Move: "<< pSQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(currentMove)] << pSQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(currentMove)]; 
+                std::cout << ((getPromotedPiece(currentMove) != 0) ? PIECE_INDEX_TO_ASCII[getPromotedPiece(currentMove)] : ' ');
                 std::cout << "\tnodes: " << currentNodes << '\n';
 
             }
@@ -1505,7 +1454,7 @@ class Position{
 
         }
 
-        int scoreMove(Move& move){
+        int scoreMove(const int& move){
 
             if(pvScore && pvTable[0][ply] == move){
                 
@@ -1514,7 +1463,7 @@ class Position{
                 
             }
 
-            if(move.isCapture()){
+            if(isCapture(move)){
 
                 int targetPiece = 0, startPiece, endPiece;
 
@@ -1531,13 +1480,13 @@ class Position{
 
                 for(int currentPiece = startPiece; currentPiece <= endPiece; currentPiece++){
 
-                    if(getBit(currentBoard.getBitboards()[currentPiece], move.getTargetSquareIndex())){
+                    if(getBit(currentBoard.getBitboards()[currentPiece], getTargetSquareIndex(move))){
                         targetPiece = currentPiece;
                         break;
                     }
                 }
 
-                return MVV_LVA[move.getPiece()][targetPiece] + 10000;
+                return MVV_LVA[getPiece(move)][targetPiece] + 10000;
 
             }else if(killerMoves[0][ply] == move){
 
@@ -1549,15 +1498,15 @@ class Position{
 
             }else{
 
-                return historyMoves[move.getPiece()][move.getTargetSquareIndex()];
+                return historyMoves[getPiece(move)][getTargetSquareIndex(move)];
             }
         }
 
-        void merge(Move* moveArray, int leftIndex, int middleIndex, int rightIndex){
+        void merge(int* moveArray, int leftIndex, int middleIndex, int rightIndex){
 
             int leftArraySize = middleIndex - leftIndex + 1;
             int rightArraySize = rightIndex - middleIndex;
-            Move leftArray[leftArraySize], rightArray[rightArraySize];
+            int leftArray[leftArraySize], rightArray[rightArraySize];
 
             for(int i = 0; i < leftArraySize; i++){
                 leftArray[i] = moveArray[leftIndex + i];
@@ -1593,7 +1542,7 @@ class Position{
             }
         }
 
-        void mergeSort(Move* moveArray, int leftIndex, int rightIndex){
+        void mergeSort(int* moveArray, int leftIndex, int rightIndex){
 
             if(leftIndex < rightIndex){
 
@@ -1628,9 +1577,9 @@ class Position{
 
             for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
 
-                Move currentMove = moveList.getMoves()[moveIndex];
+                int currentMove = moveList.getMoves()[moveIndex];
                 
-                if(currentMove.isCapture()){
+                if(isCapture(currentMove)){
 
                     Board temporaryBoard = currentBoard;
                     ply++;
@@ -1677,7 +1626,7 @@ class Position{
             }
 
             int legalMoves = 0;
-            Move currentBestMove;
+            int currentBestMove;
 
             if(depth >= REDUCTION_LIMIT && !inCheck && ply){
 
@@ -1708,7 +1657,7 @@ class Position{
             for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
 
                 Board temporaryBoard = currentBoard;
-                Move currentMove = moveList.getMoves()[moveIndex];
+                int currentMove = moveList.getMoves()[moveIndex];
                 ply++;
 
                 if(!currentBoard.makeMove(currentMove)){
@@ -1728,8 +1677,8 @@ class Position{
                         movesSearched >= FULL_DEPTH_MOVES &&
                         depth >= REDUCTION_LIMIT &&
                         inCheck == false &&
-                        !currentMove.isCapture() &&
-                        !currentMove.getPromotedPiece()
+                        !isCapture(currentMove) &&
+                        !getPromotedPiece(currentMove)
                     ){
                         score = -negamax(-alpha - 1, -alpha, depth - 2);
                     }else{
@@ -1752,7 +1701,7 @@ class Position{
 
                 if(score >= beta){
                     
-                    if(!currentMove.isCapture()){
+                    if(!isCapture(currentMove)){
                         killerMoves[1][ply] = killerMoves[0][ply];
                         killerMoves[0][ply] = currentMove;
                     }
@@ -1762,8 +1711,8 @@ class Position{
 
                 if(score > alpha){
 
-                    if(!currentMove.isCapture()){
-                        historyMoves[currentMove.getPiece()][currentMove.getTargetSquareIndex()];
+                    if(!isCapture(currentMove)){
+                        historyMoves[getPiece(currentMove)][getTargetSquareIndex(currentMove)];
                     }
 
                     alpha = score;
@@ -1800,15 +1749,14 @@ class Position{
 
         void printPV(){
             for(int i = 0; i < pvLength[0]; i++){
-                pvTable[0][i].printMove();
+                printMove(pvTable[0][i]);
                 std::cout << ' ';
             }
         }
 
         void resetSearchVariables(){
 
-            bestMove = Move();
-            searchNodes = 0, ply = 0;
+            bestMove = 0, searchNodes = 0, ply = 0;
             memset(killerMoves, 0, sizeof(killerMoves));
             memset(historyMoves, 0, sizeof(historyMoves));
             memset(pvTable, 0, sizeof(pvTable));
@@ -1816,7 +1764,7 @@ class Position{
 
         }
 
-        Move getBestMove(){
+        int getBestMove(){
             return bestMove;
         }
 
@@ -1844,7 +1792,7 @@ void search(std::string fenString, int depth){
     }
 
     std::cout << "\nBEST MOVE: ";
-    position.getBestMove().printMove();
+    printMove(position.getBestMove());
     std::cout << "\n\n";
 
     //Cleanup heap memory
@@ -1852,9 +1800,9 @@ void search(std::string fenString, int depth){
 
 }
 
-int main(){
+int main(int argc, char* args[]){
 
-    search(START_POSITION_FEN, 8);  
+    search(START_POSITION_FEN, 9);  
     return 0;
 
 }
