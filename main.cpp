@@ -1780,10 +1780,24 @@ void search(std::string fenString, int depth){
 
     Position position(fenString, pAttackTable);
     position.getBoard().printState();
+    position.resetSearchVariables();
+
+    int alpha = -50000, beta = 50000;
 
     for(int currentDepth = 1; currentDepth <= depth; currentDepth++){
 
-        std::cout << "\nEvaluation: " << position.negamax(-50000, 50000, currentDepth);
+        int score = position.negamax(alpha, beta, currentDepth);
+
+        if((score <= alpha) || (score >= beta)){
+            alpha = -50000;
+            beta = 50000;
+            continue;
+        }
+
+        alpha = score - ASPIRATION_WINDOW;
+        beta  = score + ASPIRATION_WINDOW;
+
+        std::cout << "\nEvaluation: " << score;
         std::cout << "\nSearch Nodes: " << position.getSearchNodes();
         std::cout << "\nPrincipled variation: ";
         position.printPV();
