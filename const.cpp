@@ -187,9 +187,11 @@ const int CASTLE_STATE[64] = {
     13, 15, 15, 15, 12, 15, 15, 14,
 };
 
+const int MOVE_LIST_SIZE = 256;
 const int NO_SQUARE_INDEX = -1;
 const int NO_SIDE_TO_MOVE = -1;
 
+//!TECHNIQUE-B: Dictionaries
 std::map<char, int> ASCII_TO_PIECE_INDEX = {
     {'P', 0},
     {'N', 1},
@@ -204,6 +206,8 @@ std::map<char, int> ASCII_TO_PIECE_INDEX = {
     {'q', 10},
     {'k', 11}
 };
+
+//!TECHNIQUE-B: Dictionaries
 std::map<int, char> PIECE_INDEX_TO_ASCII = {
     {0, 'P'},
     {1, 'N'},
@@ -321,4 +325,4 @@ const int MVV_LVA[12][12] =  {
 const int MAX_SEARCH_DEPTH = 64;
 const int FULL_DEPTH_MOVES = 4;
 const int REDUCTION_LIMIT = 3;
-
+const int ASPIRATION_WINDOW = 50;
