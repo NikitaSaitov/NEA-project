@@ -24,6 +24,7 @@ enum {
 Convert a square into the squareIndex from the black piece perspective
 Used in the staticEvaluate() function
 */
+//!TECHNIQUE-C: Single-dimensional arrays
 const int OPPOSITE_SIDE[64] = {
 	a1, b1, c1, d1, e1, f1, g1, h1,
 	a2, b2, c2, d2, e2, f2, g2, h2,
@@ -58,7 +59,8 @@ inline void popBit(U64& bitboard, int squareIndex){
     bitboard & (1ULL << squareIndex) ? bitboard ^= (1ULL << squareIndex) : 0;
 }
 
-//Get a bit at the given squareIndex from a given bitboard 
+//Get a bit at the given squareIndex from a given bitboard
+//!TECHNIQUE-B: Simple user defined algorithms
 inline int getBit(U64 bitboard, int squareIndex){
     return (bitboard & (1ULL << squareIndex))? 1 : 0;
 }
@@ -66,6 +68,7 @@ inline int getBit(U64 bitboard, int squareIndex){
 //Get the number of bits set to '1' on a given bitboard (cardinality)
 inline int getPopulationCount(U64 bitboard){
 
+    //!TECHNIQUE-C: Appropriate choice of simple data types
     int populationCount = 0;
     
     while(bitboard){
@@ -76,6 +79,7 @@ inline int getPopulationCount(U64 bitboard){
 }
 
 //Get the index of the least significant bit on a given biboard
+//!TECHNIQUE-B: Simple user defined algorithms
 inline int getLS1BIndex(U64 bitboard){
 
     if(bitboard){
@@ -121,6 +125,7 @@ void seedRandom(){
 }
 
 //Get a random bitboard
+//!TECHNIQUE-B: Simple user defined algorithms
 U64 getRandom(){
 
     U64 r1, r2, r3, r4;
@@ -185,10 +190,13 @@ inline void printMove(int move){
 }
 
 //********Attack Table********
+//!TECHNIQUE-A: Complex user-defined use of OOP model (classes)
+//!TECHNIQUE-B: Simple OOP model
 class AttackTable{
 
     private:
 
+        //!TECHNIQUE-B: Multidimentional arrays
         U64 pawnAttacks[2][64];
         U64 knightAttacks[64];
         U64 kingAttacks[64];
@@ -295,6 +303,7 @@ class AttackTable{
 
             U64 attacksBitboard = 0ULL;
 
+            //!TECHNIQUE-C: Appropriate choice of simple data types
             int rank, file;
 
             int targetRank = squareIndex / 8;
@@ -347,6 +356,7 @@ class AttackTable{
             
             int rank, file;
 
+            //!TECHNIQUE-C: Simple mathematical calculations
             int targetRank = squareIndex / 8;
             int targetFile = squareIndex % 8;
 
@@ -387,6 +397,7 @@ class AttackTable{
             int targetRank = squareIndex / 8;
             int targetFile = squareIndex % 8;
 
+            //!TECHNIQUE-C: Linear search
             for(rank = targetRank + 1; rank < 8; rank++){
                 setBit(attacksBitboard, rank * 8 + targetFile);
                 if(getBit(occupancy, rank * 8 + targetFile)){
@@ -419,6 +430,7 @@ class AttackTable{
 
             U64 bitboard = 0ULL;
 
+            //!TECHNIQUE-C: Linear search
             for (int currentBit = 0; currentBit < relevantBits; currentBit++){
                 
                 int squareIndex = getLS1BIndex(attackMask);
@@ -432,12 +444,14 @@ class AttackTable{
         }
 
         //Find a magic number for a given square and a given sliding piece
+        //!TECHNIQUE-A: Complex user-defined algorithms
         U64 findMagicNumber(int squareIndex, int relevantBits, bool bishop){
 
             U64 occupancies[4096], attacks[4096], usedAttacks[4096];
             //Assign the attack mask
             U64 attackMask = bishop ? maskBishopAttacks(squareIndex) : maskRookAttacks(squareIndex);
             //The position of the piece impacts the amount of squares it controls, which influences the number of possible occupancies
+            //!TECHNIQUE-C: Simple mathematical calculations
             int maxOccupancyIndex = 1 << relevantBits;
 
             for(int index = 0; index < maxOccupancyIndex; index++){
@@ -457,9 +471,13 @@ class AttackTable{
                 }
 
                 memset(usedAttacks, 0, sizeof(usedAttacks));
-                int index, fail;
 
-                for(index = 0, fail = 0; !fail && index < maxOccupancyIndex; index++){
+                //!TECHNIQUE-C: Appropriate choice of simple data types
+                int index;
+                bool fail;
+
+                //!TECHNIQUE-C: Linear search
+                for(index = 0, fail = false; !fail && index < maxOccupancyIndex; index++){
 
                     //Generate the magic number and destroy the garbage bits
                     int magicIndex = (int)((occupancies[index] * magicNumber) >> (64 - relevantBits));
@@ -468,7 +486,7 @@ class AttackTable{
                     if(usedAttacks[magicIndex] == 0ULL){
                         usedAttacks[magicIndex] = attacks[index];
                     }else if(usedAttacks[magicIndex] != attacks[index]){
-                        fail = 1;
+                        fail = true;
                     }
                 }
 
@@ -579,7 +597,6 @@ class AttackTable{
             return getBishopAttacks(squareIndex, occupancy) | getRookAttacks(squareIndex, occupancy);
         }
 
-        //********Redundant methods used to generate constants********
         //Calculate and print masking constants
         void printMaskingConstants(){
 
@@ -665,10 +682,13 @@ class AttackTable{
 
 
 //********MoveList********
+//!TECHNIQUE-A: Complex user-defined use of OOP model (classes)
+//!TECHNIQUE-B: Simple OOP model
 class MoveList{
 
     private:
 
+        //!TECHNIQUE-C: Single-dimensional arrays
         int moves[256];
         int count = 0;
 
@@ -689,6 +709,7 @@ class MoveList{
 };
 
 //********Board********
+//!TECHNIQUE-A: Complex user-defined use of OOP model (classes)
 class Board{
 
     private:
@@ -699,7 +720,14 @@ class Board{
 
         int sideToMove = NO_SIDE_TO_MOVE;
         int enPassantSquareIndex = NO_SQUARE_INDEX;
-        int canCastle = 0; 
+        int canCastle = 0;
+
+        //!TECHNIQUE-B: Multi-dimentioanl arrays
+        U64 pieceKeys[12][64];
+        U64 enPassantKeys[64];
+        U64 castlingKeys[16];
+        U64 sideKey; 
+        U64 hashKey;
 
         void resetBitboards(){
             memset(bitboards, 0, sizeof(bitboards)); 
@@ -735,6 +763,57 @@ class Board{
             return false;
         }
 
+        //!TECHNIQUE-A: Hashing
+        void createKeys(){
+
+            seedRandom();
+
+            for(int currentPiece = whitePawn; currentPiece <= blackKing; currentPiece++){
+
+                for(int currentSquareIdex = 0; currentSquareIdex < 64; currentSquareIdex++){
+                    pieceKeys[currentPiece][currentSquareIdex] = getRandom();
+                }
+            }
+
+            for(int currentSquareIdex = 0; currentSquareIdex < 64; currentSquareIdex++){
+                enPassantKeys[currentSquareIdex] = getRandom();
+            }
+
+            for(int castlingIndex = 0; castlingIndex < 16; castlingIndex++){
+                castlingKeys[castlingIndex] = getRandom();
+            }
+
+            sideKey = getRandom();
+        }
+
+        //!TECHNIQUE-A: Hashing
+        void createHash(){
+
+            for(int currentPiece = whitePawn; currentPiece <= blackKing; currentPiece++){
+
+               U64 currentBiboard = bitboards[currentPiece];
+
+               while(currentBiboard){
+
+                int squareIndex = getLS1BIndex(currentBiboard);
+                hashKey ^= pieceKeys[currentPiece][squareIndex];
+                popBit(currentBiboard, squareIndex);
+
+               }
+            }
+
+            if (enPassantSquareIndex != NO_SQUARE_INDEX){
+                hashKey ^= enPassantKeys[enPassantSquareIndex];
+            }
+
+            hashKey ^= castlingKeys[canCastle];
+
+            if(sideToMove == black){
+                hashKey ^= sideKey;
+            }
+
+        }
+
     public:
 
         Board(){}
@@ -743,6 +822,9 @@ class Board{
 
             this->pAttackTable = pAttackTable;
             loadFenString(fenString);
+
+            createKeys();
+            createHash();
 
         }
 
@@ -766,6 +848,7 @@ class Board{
                 for(int file = 0; file < 8; file++){
 
                     //Least significant file (LSF) mapping
+                    //!TECHNIQUE-C: Simple mathematical calculations
                     int squareIndex = rank * 8 + file;
 
                     //Print the ranks
@@ -792,9 +875,10 @@ class Board{
             std::cout << "Turn: " << ((sideToMove != NO_SIDE_TO_MOVE) ? ((!sideToMove) ? "white" : "black") : "not specified") << '\n';
             std::cout << "Can castle: " << ((canCastle & K) ? 'K' : '-') << ((canCastle & Q) ? 'Q' : '-') << ((canCastle & k) ? 'k' : '-') << ((canCastle & q) ? 'q' : '-') << '\n';
             std::cout << "EnPassant square: " << ((enPassantSquareIndex != NO_SQUARE_INDEX) ? pSQUARE_INDEX_TO_COORDINATES[enPassantSquareIndex] : "no square") << '\n';
+            std::cout << "Hash key: " << hashKey << "\n\n";
         };
 
-        void appendPseudolegalMoves(MoveList& moveList){
+        void createPseudolegalMoves(MoveList& moveList){
 
             int startSquareIndex, targetSquareIndex;
             U64 currentPieceBitboard, currentPieceAttacks;
@@ -819,10 +903,9 @@ class Board{
                                 
                                 if(startSquareIndex >= a7 && startSquareIndex <= h7){
 
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteQueen, 0, 0, 0, 0);
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteRook, 0, 0, 0, 0);
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteBishop, 0, 0, 0, 0);
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteKnight, 0, 0, 0, 0);
+                                    for(int promotedPiece = whiteKnight; promotedPiece <= whiteQueen; promotedPiece++){
+                                        moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, promotedPiece, 0, 0, 0, 0);
+                                    }
 
                                 }else{
 
@@ -843,10 +926,9 @@ class Board{
 
                                 if(startSquareIndex >= a7 && startSquareIndex <= h7){
 
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteQueen, 1, 0, 0, 0);
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteRook, 1, 0, 0, 0);
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteBishop, 1, 0, 0, 0);
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, whiteKnight, 1, 0, 0, 0);
+                                    for(int promotedPiece = whiteKnight; promotedPiece <= whiteQueen; promotedPiece++){
+                                        moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, promotedPiece, 1, 0, 0, 0);
+                                    }
 
                                 }else{
                                     moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
@@ -900,10 +982,9 @@ class Board{
                                 
                                 if(startSquareIndex >= a2 && startSquareIndex <= h2){
 
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackQueen, 0, 0, 0, 0);
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackRook, 0, 0, 0, 0);
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackBishop, 0, 0, 0, 0);
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackKnight, 0, 0, 0, 0);
+                                    for(int promotedPiece = blackKnight; promotedPiece <= blackQueen; promotedPiece++){
+                                        moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, promotedPiece, 0, 0, 0, 0);
+                                    }
                                     
                                 }else{
                                     moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
@@ -922,10 +1003,9 @@ class Board{
 
                                 if(startSquareIndex >= a2 && startSquareIndex <= h2){
 
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackQueen, 1, 0, 0, 0);
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackRook, 1, 0, 0, 0);
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackBishop, 1, 0, 0, 0);
-                                    moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, blackKnight, 1, 0, 0, 0);
+                                    for(int promotedPiece = blackKnight; promotedPiece <= blackQueen; promotedPiece++){
+                                        moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, promotedPiece, 1, 0, 0, 0);
+                                    }
 
                                 }else{
                                     moveList.addMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
@@ -1262,7 +1342,7 @@ class Board{
             int targetSquareIndex = (moveString[2] - 'a') + (8 - (moveString[3] - '0')) * 8;
 
             MoveList possibleMoves;
-            appendPseudolegalMoves(possibleMoves);
+            createPseudolegalMoves(possibleMoves);
 
             for(int moveIndex = 0; moveIndex < possibleMoves.getCount(); moveIndex++){
 
@@ -1288,7 +1368,7 @@ class Board{
         int staticEvaluate(){
 
             int score = 0;
-            int currentSquareIndex;
+            int squareIndex;
 
             for(int currentPiece = whitePawn; currentPiece <= blackKing; currentPiece++){
 
@@ -1297,46 +1377,46 @@ class Board{
                 while(currentPieceBitboard){
 
                     score += MATERIAL_SCORE[currentPiece];
-                    currentSquareIndex = getLS1BIndex(currentPieceBitboard);
-                    popBit(currentPieceBitboard, currentSquareIndex);
+                    squareIndex = getLS1BIndex(currentPieceBitboard);
+                    popBit(currentPieceBitboard, squareIndex);
                 
                     switch(currentPiece){
 
                     case(whitePawn):
-                        score += PAWN_SCORE[currentSquareIndex];
+                        score += PAWN_SCORE[squareIndex];
                         break;
                     case(whiteKnight):
-                        score += KNIGHT_SCORE[currentSquareIndex];
+                        score += KNIGHT_SCORE[squareIndex];
                         break;
                     case(whiteBishop):
-                        score += BISHOP_SCORE[currentSquareIndex];
+                        score += BISHOP_SCORE[squareIndex];
                         break;
                     case(whiteRook):
-                        score += ROOK_SCORE[currentSquareIndex];
+                        score += ROOK_SCORE[squareIndex];
                         break;
                     case(whiteKing):
-                        score += PAWN_SCORE[currentSquareIndex];
+                        score += PAWN_SCORE[squareIndex];
                         break;
                     case(blackPawn):
-                        score -= PAWN_SCORE[OPPOSITE_SIDE[currentSquareIndex]];
+                        score -= PAWN_SCORE[OPPOSITE_SIDE[squareIndex]];
                         break;
                     case(blackKnight):
-                        score -= KNIGHT_SCORE[OPPOSITE_SIDE[currentSquareIndex]];
+                        score -= KNIGHT_SCORE[OPPOSITE_SIDE[squareIndex]];
                         break;
                     case(blackBishop):
-                        score -= BISHOP_SCORE[OPPOSITE_SIDE[currentSquareIndex]];
+                        score -= BISHOP_SCORE[OPPOSITE_SIDE[squareIndex]];
                         break;
                     case(blackRook):
-                        score -= ROOK_SCORE[OPPOSITE_SIDE[currentSquareIndex]];
+                        score -= ROOK_SCORE[OPPOSITE_SIDE[squareIndex]];
                         break; 
                     case(blackKing):
-                        score -= KING_SCORE[OPPOSITE_SIDE[currentSquareIndex]];
+                        score -= KING_SCORE[OPPOSITE_SIDE[squareIndex]];
                         break;
                     }
 
                 }
             }
-            //In negamax the score is returned relative to the side
+            //In negamax the score is evaluated relative to the side
             return (sideToMove == white) ? score : -score;
         }
 
@@ -1355,18 +1435,22 @@ class Board{
 };
 
 //********Position********
+//!TECHNIQUE-A: Complex user-defined use of OOP model (classes)
+//!TECHNIQUE-B: Simple OOP model
 class Position{
 
     private:
          
         Board currentBoard;
+        //!TECHNIQUE-B: Multi-dimensional arrays
         int killerMoves[2][MAX_SEARCH_DEPTH];
         int historyMoves[12][64];
 
         int pvTable[MAX_SEARCH_DEPTH][MAX_SEARCH_DEPTH];
+        //!TECHNIQUE-C: Single-dimensional arrays
         int pvLength[MAX_SEARCH_DEPTH];
-        bool pvScore = false;
-        bool pvFollow;
+        bool fPVScore = false;
+        bool fPVFollow = false;
 
         int bestMove;
         int ply, searchNodes;
@@ -1378,6 +1462,7 @@ class Position{
             ply = 0, searchNodes = 0;
         }
 
+        //!TECHNIQUE-A: Recursive algorithms
         U64 perft(int depth){
 
             U64 nodes = 0ULL;
@@ -1386,11 +1471,13 @@ class Position{
                 return 1ULL;
             }
 
+            //!TECHNIQUE-A: Dynamic generation of objects
             MoveList moveList;
-            currentBoard.appendPseudolegalMoves(moveList);
+            currentBoard.createPseudolegalMoves(moveList);
 
             for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
                 
+                //!TECHNIQUE-A: Dynamic generation of objects
                 Board temporaryBoard = currentBoard;
 
                 if(!currentBoard.makeMove(moveList.getMoves()[moveIndex])){
@@ -1409,7 +1496,7 @@ class Position{
 
             U64 nodes = 0ULL;
             MoveList moveList;
-            currentBoard.appendPseudolegalMoves(moveList);
+            currentBoard.createPseudolegalMoves(moveList);
 
             auto start = std::chrono::high_resolution_clock::now();
 
@@ -1441,13 +1528,13 @@ class Position{
 
         void allowPVScore(MoveList& moveList){
 
-            pvFollow = false;
+            fPVFollow = false;
 
             for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
                 if(moveList.getMoves()[moveIndex] == pvTable[0][ply]){
 
-                    pvScore = true;
-                    pvFollow = true;
+                    fPVScore = true;
+                    fPVFollow = true;
 
                 }
             }  
@@ -1456,9 +1543,9 @@ class Position{
 
         int scoreMove(const int& move){
 
-            if(pvScore && pvTable[0][ply] == move){
+            if(fPVScore && pvTable[0][ply] == move){
                 
-                pvScore = false;
+                fPVScore = false;
                 return 20000;
                 
             }
@@ -1506,6 +1593,7 @@ class Position{
 
             int leftArraySize = middleIndex - leftIndex + 1;
             int rightArraySize = rightIndex - middleIndex;
+
             int leftArray[leftArraySize], rightArray[rightArraySize];
 
             for(int i = 0; i < leftArraySize; i++){
@@ -1542,6 +1630,7 @@ class Position{
             }
         }
 
+        //!TECHNIQUE-A: Mergesort or similarly efficient sort
         void mergeSort(int* moveArray, int leftIndex, int rightIndex){
 
             if(leftIndex < rightIndex){
@@ -1557,10 +1646,10 @@ class Position{
             mergeSort(moveList.getMoves(), 0, moveList.getCount() - 1);
         }
 
-        int quiescene(int alpha, int beta){
+        //!TECHNIQUE-A: Recursive algorithms
+        int quiescence(int alpha, int beta){
 
             searchNodes++;
-
             int evaluation = currentBoard.staticEvaluate();
 
             if(evaluation >= beta){
@@ -1571,8 +1660,9 @@ class Position{
                 alpha = evaluation;
             }
 
+            //!TECHNIQUE-A: Dynamic generation of objects
             MoveList moveList;
-            currentBoard.appendPseudolegalMoves(moveList);
+            currentBoard.createPseudolegalMoves(moveList);
             sortMoves(moveList);
 
             for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
@@ -1581,6 +1671,7 @@ class Position{
                 
                 if(isCapture(currentMove)){
 
+                    //!TECHNIQUE-A: Dynamic generation of objects
                     Board temporaryBoard = currentBoard;
                     ply++;
 
@@ -1589,7 +1680,7 @@ class Position{
                         continue;
                     }
 
-                    int score = -quiescene(-beta, -alpha);
+                    int score = -quiescence(-beta, -alpha);
                     ply--;
                     currentBoard = temporaryBoard;
 
@@ -1606,12 +1697,13 @@ class Position{
             return alpha;
         }
 
+        //!TECHNIQUE-A: Recursive algorithms
         int negamax(int alpha, int beta, int depth){
 
             pvLength[ply] = ply;
 
             if(depth == 0){
-                return quiescene(alpha, beta);
+                return quiescence(alpha, beta);
             }
 
             if(ply > MAX_SEARCH_DEPTH - 1){
@@ -1628,8 +1720,10 @@ class Position{
             int legalMoves = 0;
             int currentBestMove;
 
+            //!TECHNIQUE-A: Complex user-defined algorithms (optimisation)
             if(depth >= REDUCTION_LIMIT && !inCheck && ply){
 
+                //!TECHNIQUE-A: Dynamic generation of objects
                 Board nullMoveTemporaryBoard = currentBoard;
                 currentBoard.switchSideToMove();
                 currentBoard.resetEnPassantSquareIndex();
@@ -1644,18 +1738,20 @@ class Position{
 
             }
             
+            //!TECHNIQUE-A: Dynamic generation of objects
             MoveList moveList;
-            currentBoard.appendPseudolegalMoves(moveList);
+            currentBoard.createPseudolegalMoves(moveList);
 
-            if(pvFollow){
+            if(fPVFollow){
                 allowPVScore(moveList);
             }
-
             sortMoves(moveList);
+
             int movesSearched = 0;
 
             for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
 
+                //!TECHNIQUE-A: Dynamic generation of objects
                 Board temporaryBoard = currentBoard;
                 int currentMove = moveList.getMoves()[moveIndex];
                 ply++;
@@ -1669,6 +1765,7 @@ class Position{
 
                 int score;
 
+                //!TECHNIQUE-A: Complex user-defined algorithms (optimisation)
                 if(movesSearched == 0){
                     score = -negamax(-beta, -alpha, depth - 1);
                 }else{
@@ -1696,9 +1793,10 @@ class Position{
                 }
 
                 ply--;
+                movesSearched++;
                 currentBoard = temporaryBoard;
-                movesSearched;
 
+                //!TECHNIQUE-A: Complex user-defined algorithms (optimisation)
                 if(score >= beta){
                     
                     if(!isCapture(currentMove)){
@@ -1709,6 +1807,7 @@ class Position{
                     return beta;
                 }
 
+                //!TECHNIQUE-A: Complex user-defined algorithms (optimisation)
                 if(score > alpha){
 
                     if(!isCapture(currentMove)){
@@ -1776,13 +1875,17 @@ class Position{
 void search(std::string fenString, int depth){
 
     //Heap memory is nessesary; max static memory size = 1MB, rookAttacks moveArray > 2MB
+    //!TECHNIQUE-B: Generation of objects based on simple OOP model
     AttackTable* pAttackTable = new AttackTable(); 
 
+    //!TECHNIQUE-B: Generation of objects based on simple OOP model
     Position position(fenString, pAttackTable);
     position.getBoard().printState();
     position.resetSearchVariables();
 
     int alpha = -50000, beta = 50000;
+
+    auto start = std::chrono::high_resolution_clock::now();
 
     for(int currentDepth = 1; currentDepth <= depth; currentDepth++){
 
@@ -1805,9 +1908,10 @@ void search(std::string fenString, int depth){
 
     }
 
-    std::cout << "\nBEST MOVE: ";
+    std::cout << "\nBest Move: ";
     printMove(position.getBestMove());
-    std::cout << "\n\n";
+
+    std::cout << "\n\nTest time: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " mircoseconds\n\n";
 
     //Cleanup heap memory
     delete pAttackTable;
@@ -1816,7 +1920,9 @@ void search(std::string fenString, int depth){
 
 int main(int argc, char* args[]){
 
-    search(START_POSITION_FEN, 9);  
+    search(START_POSITION_FEN, 9);
+
     return 0;
 
 }
+
