@@ -6,6 +6,8 @@
 #include "const.cpp"
 
 using U64 = unsigned long long;
+using std::string, std::cout;
+
 
 //********square <-> squareIndex conversion and other useful enumerations********
 //Convert a square into the squareIndex
@@ -95,7 +97,7 @@ inline int getLS1BIndex(U64 bitboard){
 //Print the bitboard
 void printBitboard(const U64& bitboard){
 
-    std::cout << '\n' << "Visual representation: " << "\n\n";
+    cout << '\n' << "Visual representation: " << "\n\n";
     
     for(int rank = 0; rank < 8; rank++){
 
@@ -106,16 +108,16 @@ void printBitboard(const U64& bitboard){
 
             //Print the ranks
             if(!file){
-                std::cout << 8 - rank << "  ";
+                cout << 8 - rank << "  ";
             }
-            std::cout << (getBit(bitboard, squareIndex)? 1 : 0) << ' ';
+            cout << (getBit(bitboard, squareIndex)? 1 : 0) << ' ';
         }
-        std::cout << '\n';
+        cout << '\n';
     }
     //Print the files
-    std::cout << '\n' << "   a b c d e f g h " << '\n';
+    cout << '\n' << "   a b c d e f g h " << '\n';
     //Display the decimal equivalent of a bitboard
-    std::cout << '\n' << "Decimal representation: " << bitboard << '\n';
+    cout << '\n' << "Decimal representation: " << bitboard << '\n';
 }
 
 //********Pseudo-random numbers********
@@ -144,8 +146,8 @@ U64 getRandomFewBits(){
 }
 
 //********Move encoding********
-inline int createMove(int startSquareIndex, int targetSquareIndex, int piece, int promotedPiece, bool isCapture, bool isDoublePawnPush, bool isEnPassant, bool isCastling){
-    return startSquareIndex | (targetSquareIndex << 6) | (piece << 12) | (promotedPiece << 16) | (isCapture << 20) | (isDoublePawnPush << 21) | (isEnPassant << 22) | (isCastling << 23);
+inline int createMove(int startSquareIndex, int targetSquareIndex, int piece, int promotedPiece, bool fCapture, bool fDoublePawnPush, bool fEnPassant, bool fCastling){
+    return startSquareIndex | (targetSquareIndex << 6) | (piece << 12) | (promotedPiece << 16) | (fCapture << 20) | (fDoublePawnPush << 21) | (fEnPassant << 22) | (fCastling << 23);
 }
 
 inline int getStartSquareIndex(int move){
@@ -182,9 +184,9 @@ inline bool isCastling(int move){
 
 inline void printMove(int move){
     if(getPromotedPiece(move)){
-       std::cout << pSQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(move)] << pSQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(move)] << PIECE_INDEX_TO_ASCII[getPromotedPiece(move)];
+       cout << pSQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(move)] << pSQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(move)] << PIECE_INDEX_TO_ASCII[getPromotedPiece(move)];
     }else{
-       std::cout << pSQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(move)] << pSQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(move)];
+       cout << pSQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(move)] << pSQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(move)];
     }
 }
 
@@ -196,7 +198,7 @@ U64 CASTLING_KEYS[16];
 U64 SIDE_KEY; 
 
 //!TECHNIQUE-A: Hashing
-void createKeys(){
+void generateKeys(){
 
     seedRandom();
 
@@ -204,10 +206,8 @@ void createKeys(){
 
         for(int currentSquareIdex = 0; currentSquareIdex < 64; currentSquareIdex++){
             PIECE_KEYS[currentPiece][currentSquareIdex] = getRandom();
-            std::cout << PIECE_KEYS[currentPiece][currentSquareIdex] << ", ";
         }
 
-        std::cout << '\n';
     }
 
     for(int currentSquareIdex = 0; currentSquareIdex < 64; currentSquareIdex++){
@@ -330,7 +330,7 @@ class AttackTable{
             return attacksBitboard;
         }
 
-        //Return a bitboard of bishop attacks for a given squareIndex, the outermost bits are dropped to speed up move generation
+        //Return a bitboard of fBishop attacks for a given squareIndex, the outermost bits are dropped to speed up move generation
         U64 maskBishopAttacks(int squareIndex){
 
             U64 attacksBitboard = 0ULL;
@@ -381,7 +381,7 @@ class AttackTable{
             return attacksBitboard;
         }
 
-        //Return a bitboard of bishop attacks for a given square and occupancy
+        //Return a bitboard of fBishop attacks for a given square and occupancy
         U64 generateBishopAttacks(int squareIndex, const U64& occupancy){
 
             U64 attacksBitboard = 0ULL;
@@ -477,18 +477,18 @@ class AttackTable{
 
         //Find a magic number for a given square and a given sliding piece
         //!TECHNIQUE-A: Complex user-defined algorithms
-        U64 findMagicNumber(int squareIndex, int relevantBits, bool bishop){
+        U64 findMagicNumber(int squareIndex, int relevantBits, bool fBishop){
 
             U64 occupancies[4096], attacks[4096], usedAttacks[4096];
             //Assign the attack mask
-            U64 attackMask = bishop ? maskBishopAttacks(squareIndex) : maskRookAttacks(squareIndex);
+            U64 attackMask = fBishop ? maskBishopAttacks(squareIndex) : maskRookAttacks(squareIndex);
             //The position of the piece impacts the amount of squares it controls, which influences the number of possible occupancies
             //!TECHNIQUE-C: Simple mathematical calculations
             int maxOccupancyIndex = 1 << relevantBits;
 
             for(int index = 0; index < maxOccupancyIndex; index++){
                 occupancies[index] = setOccupancy(index, relevantBits, attackMask);
-                attacks[index] = bishop ? generateBishopAttacks(squareIndex, occupancies[index]) : generateRookAttacks(squareIndex, occupancies[index]);
+                attacks[index] = fBishop ? generateBishopAttacks(squareIndex, occupancies[index]) : generateRookAttacks(squareIndex, occupancies[index]);
             }
 
             seedRandom();
@@ -506,10 +506,10 @@ class AttackTable{
 
                 //!TECHNIQUE-C: Appropriate choice of simple data types
                 int index;
-                bool fail;
+                bool fFail;
 
                 //!TECHNIQUE-C: Linear search
-                for(index = 0, fail = false; !fail && index < maxOccupancyIndex; index++){
+                for(index = 0, fFail = false; !fFail && index < maxOccupancyIndex; index++){
 
                     //Generate the magic number and destroy the garbage bits
                     int magicIndex = (int)((occupancies[index] * magicNumber) >> (64 - relevantBits));
@@ -518,16 +518,16 @@ class AttackTable{
                     if(usedAttacks[magicIndex] == 0ULL){
                         usedAttacks[magicIndex] = attacks[index];
                     }else if(usedAttacks[magicIndex] != attacks[index]){
-                        fail = true;
+                        fFail = true;
                     }
                 }
 
-                if(!fail){
+                if(!fFail){
                     return magicNumber;
                 }
             } 
 
-            std::cout << "MAGIC NUMBER NOT FOUND!\n";
+            cout << "MAGIC NUMBER NOT FOUND!\n";
             return 0ULL;
         }
 
@@ -545,14 +545,14 @@ class AttackTable{
         }
 
         //Initialize attack tables for the sliding pieces
-        void initializeSlidingPieceTables(bool bishop){
+        void initializeSlidingPieceTables(bool fBishop){
 
             for(int squareIndex = 0; squareIndex < 64; squareIndex++){
 
                 bishopMasks[squareIndex] = maskBishopAttacks(squareIndex);
                 rookMasks[squareIndex] = maskRookAttacks(squareIndex);
 
-                U64 attackMask = bishop ? bishopMasks[squareIndex] : rookMasks[squareIndex];
+                U64 attackMask = fBishop ? bishopMasks[squareIndex] : rookMasks[squareIndex];
 
                 int relevantBits = getPopulationCount(attackMask);
                 int maxOccupancyIndex = 1 << relevantBits;
@@ -561,7 +561,7 @@ class AttackTable{
 
                     U64 occupancy = setOccupancy(occupancyIndex, relevantBits, attackMask);
                         
-                    if(bishop){
+                    if(fBishop){
 
                         int magicIndex = (occupancy * BISHOP_MAGIC_NUMBERS[squareIndex]) >> (64 - BISHOP_RELEVANT_BITS[squareIndex]);
                         bishopAttacks[squareIndex][magicIndex] = generateBishopAttacks(squareIndex, occupancy);
@@ -603,7 +603,7 @@ class AttackTable{
             return kingAttacks[squareIndex];
         }
 
-        //Get bishop attacks at the given squareIndex for a given occupancy
+        //Get fBishop attacks at the given squareIndex for a given occupancy
         U64 getBishopAttacks(int squareIndex, U64 occupancy){
 
             occupancy &= bishopMasks[squareIndex]; 
@@ -643,8 +643,8 @@ class MoveList{
 
     public:   
 
-        void appendMove(int startSquareIndex, int targetSquareIndex, int piece, int promotedPiece, bool capture, bool doublePawnPush, bool enPassant, bool castling){
-            moves[count] = createMove(startSquareIndex, targetSquareIndex, piece, promotedPiece, capture, doublePawnPush, enPassant, castling);
+        void appendMove(int startSquareIndex, int targetSquareIndex, int piece, int promotedPiece, bool fCapture, bool fDoublePawnPush, bool fEnPassant, bool fCastling){
+            moves[count] = createMove(startSquareIndex, targetSquareIndex, piece, promotedPiece, fCapture, fDoublePawnPush, fEnPassant, fCastling);
             count++;
         }
 
@@ -739,7 +739,7 @@ class Board{
 
         Board(){}
 
-        Board(std::string fenString, AttackTable* pAttackTable){
+        Board(string fenString, AttackTable* pAttackTable){
 
             this->pAttackTable = pAttackTable;
             loadFenString(fenString);
@@ -761,7 +761,7 @@ class Board{
 
         void printState(){
 
-            std::cout << '\n';
+            cout << '\n';
 
             for(int rank = 0; rank < 8; rank++){
 
@@ -773,7 +773,7 @@ class Board{
 
                     //Print the ranks
                     if(!file){
-                        std::cout << 8 - rank << "  ";
+                        cout << 8 - rank << "  ";
                     }
 
                     int piece = -1;
@@ -784,18 +784,18 @@ class Board{
                             piece = currentPiece;
                         }
                     }
-                    std::cout << ((piece == -1) ? '.' : PIECE_INDEX_TO_ASCII[piece]) << ' ';
+                    cout << ((piece == -1) ? '.' : PIECE_INDEX_TO_ASCII[piece]) << ' ';
                 }
-                std::cout << '\n';
+                cout << '\n';
             }
             //Print the files
-            std::cout << '\n' << "   a b c d e f g h " << "\n\n";
+            cout << '\n' << "   a b c d e f g h " << "\n\n";
 
             //Special position details
-            std::cout << "Turn: " << ((sideToMove != NO_SIDE_TO_MOVE) ? ((!sideToMove) ? "white" : "black") : "not specified") << '\n';
-            std::cout << "Can castle: " << ((canCastle & K) ? 'K' : '-') << ((canCastle & Q) ? 'Q' : '-') << ((canCastle & k) ? 'k' : '-') << ((canCastle & q) ? 'q' : '-') << '\n';
-            std::cout << "EnPassant square: " << ((enPassantSquareIndex != NO_SQUARE_INDEX) ? pSQUARE_INDEX_TO_COORDINATES[enPassantSquareIndex] : "no square") << '\n';
-            std::cout << "Hash: " << hash << "\n\n";
+            cout << "Turn: " << ((sideToMove != NO_SIDE_TO_MOVE) ? ((!sideToMove) ? "white" : "black") : "not specified") << '\n';
+            cout << "Can castle: " << ((canCastle & K) ? 'K' : '-') << ((canCastle & Q) ? 'Q' : '-') << ((canCastle & k) ? 'k' : '-') << ((canCastle & q) ? 'q' : '-') << '\n';
+            cout << "EnPassant square: " << ((enPassantSquareIndex != NO_SQUARE_INDEX) ? pSQUARE_INDEX_TO_COORDINATES[enPassantSquareIndex] : "no square") << '\n';
+            cout << "Hash: " << hash << "\n\n";
         };
 
         void generateMoves(MoveList& moveList){
@@ -1205,7 +1205,7 @@ class Board{
             return 1;
         }
 
-        void loadFenString(const std::string& fenString){
+        void loadFenString(const string& fenString){
 
             resetBitboards();
             resetOcuupancies();
@@ -1256,7 +1256,7 @@ class Board{
             populateOccupancies();
         }
 
-        void loadMoveString(const std::string& moveString){
+        void loadMoveString(const string& moveString){
 
             int startSquareIndex = (moveString[0] - 'a') + (8 - (moveString[1] - '0')) * 8;
             int targetSquareIndex = (moveString[2] - 'a') + (8 - (moveString[3] - '0')) * 8;
@@ -1377,7 +1377,7 @@ class Position{
 
     public:
 
-        Position(std::string fenString, AttackTable* pAttackTable){
+        Position(string fenString, AttackTable* pAttackTable){
             currentBoard = Board(fenString, pAttackTable);
             ply = 0, searchNodes = 0;
         }
@@ -1412,7 +1412,7 @@ class Position{
 
         void perftDebugInfo(int depth){
 
-            std::cout << "\n    Performance test\n\n";
+            cout << "\n    Performance test\n\n";
 
             U64 nodes = 0ULL;
             MoveList moveList;
@@ -1435,15 +1435,15 @@ class Position{
 
                 currentBoard = temporaryBoard;
 
-                std::cout << "Move: "<< pSQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(currentMove)] << pSQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(currentMove)]; 
-                std::cout << ((getPromotedPiece(currentMove) != 0) ? PIECE_INDEX_TO_ASCII[getPromotedPiece(currentMove)] : ' ');
-                std::cout << "\tnodes: " << currentNodes << '\n';
+                cout << "Move: "<< pSQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(currentMove)] << pSQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(currentMove)]; 
+                cout << ((getPromotedPiece(currentMove) != 0) ? PIECE_INDEX_TO_ASCII[getPromotedPiece(currentMove)] : ' ');
+                cout << "\tnodes: " << currentNodes << '\n';
 
             }
 
-            std::cout << "\nDepth: " << depth;
-            std::cout << "\nTotal number of nodes: " << nodes;
-            std::cout << "\nTest time: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " mircoseconds\n\n";
+            cout << "\nDepth: " << depth;
+            cout << "\nTotal number of nodes: " << nodes;
+            cout << "\nTest time: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " mircoseconds\n\n";
         }
 
         void allowPVScore(MoveList& moveList){
@@ -1769,7 +1769,7 @@ class Position{
         void printPV(){
             for(int i = 0; i < pvLength[0]; i++){
                 printMove(pvTable[0][i]);
-                std::cout << ' ';
+                cout << ' ';
             }
         }
 
@@ -1792,7 +1792,9 @@ class Position{
         }
 };
 
-void search(std::string fenString, int depth){
+void search(string fenString, int depth){
+
+    generateKeys();
 
     //Heap memory is nessesary; max static memory size = 1MB, rookAttacks moveArray > 2MB
     //!TECHNIQUE-B: Generation of objects based on simple OOP model
@@ -1820,18 +1822,18 @@ void search(std::string fenString, int depth){
         alpha = score - ASPIRATION_WINDOW;
         beta  = score + ASPIRATION_WINDOW;
 
-        std::cout << "\nEvaluation: " << score;
-        std::cout << "\nSearch Nodes: " << position.getSearchNodes();
-        std::cout << "\nPrincipled variation: ";
+        cout << "\nEvaluation: " << score;
+        cout << "\nSearch Nodes: " << position.getSearchNodes();
+        cout << "\nPrincipled variation: ";
         position.printPV();
-        std::cout << '\n';
+        cout << '\n';
 
     }
 
-    std::cout << "\nBest Move: ";
+    cout << "\nBest Move: ";
     printMove(position.getBestMove());
 
-    std::cout << "\n\nTest time: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " mircoseconds\n\n";
+    cout << "\n\nTest time: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " mircoseconds\n\n";
 
     //Cleanup heap memory
     delete pAttackTable;
@@ -1840,12 +1842,7 @@ void search(std::string fenString, int depth){
 
 int main(int argc, char* args[]){
 
-    AttackTable* pAttackTable = new AttackTable(); 
-
-    Board testboard(START_POSITION_FEN, pAttackTable);
-
-    delete pAttackTable;
-
+    search(START_POSITION_FEN, 8);
     return 0;
-
 }
+
