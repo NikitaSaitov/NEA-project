@@ -187,7 +187,6 @@ const int CASTLE_STATE[64] = {
     13, 15, 15, 15, 12, 15, 15, 14,
 };
 
-const int MOVE_LIST_SIZE = 256;
 const int NO_SQUARE_INDEX = -1;
 const int NO_SIDE_TO_MOVE = -1;
 
