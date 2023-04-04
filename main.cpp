@@ -232,10 +232,14 @@ class AttackTable{
         U64 pawnAttacks[2][64];
         U64 knightAttacks[64];
         U64 kingAttacks[64];
-        U64 bishopMasks[64];
-        U64 rookMasks[64];
         U64 bishopAttacks[64][512];
         U64 rookAttacks[64][4096];
+
+        U64 bishopMasks[64];
+        U64 rookMasks[64];
+
+        U64 rookMagics[64];
+        U64 bishopMagics[64];
 
         //Return a bitboard of pawn attacks for a given squareIndex and side
         U64 maskPawnAttacks(int squareIndex, int sideToMove){
@@ -548,6 +552,11 @@ class AttackTable{
         void initializeSlidingPieceTables(bool fBishop){
 
             for(int squareIndex = 0; squareIndex < 64; squareIndex++){
+                bishopMagics[squareIndex] = findMagicNumber(squareIndex, BISHOP_RELEVANT_BITS[squareIndex], true);
+                rookMagics[squareIndex] = findMagicNumber(squareIndex, ROOK_RELEVANT_BITS[squareIndex], false);
+            }
+
+            for(int squareIndex = 0; squareIndex < 64; squareIndex++){
 
                 bishopMasks[squareIndex] = maskBishopAttacks(squareIndex);
                 rookMasks[squareIndex] = maskRookAttacks(squareIndex);
@@ -563,13 +572,13 @@ class AttackTable{
                         
                     if(fBishop){
 
-                        int magicIndex = (occupancy * BISHOP_MAGIC_NUMBERS[squareIndex]) >> (64 - BISHOP_RELEVANT_BITS[squareIndex]);
+                        int magicIndex = (occupancy * bishopMagics[squareIndex]) >> (64 - BISHOP_RELEVANT_BITS[squareIndex]);
                         bishopAttacks[squareIndex][magicIndex] = generateBishopAttacks(squareIndex, occupancy);
 
                     }
                     else{
 
-                        int magicIndex = (occupancy * ROOK_MAGIC_NUMBERS[squareIndex]) >> (64 - ROOK_RELEVANT_BITS[squareIndex]);
+                        int magicIndex = (occupancy * rookMagics[squareIndex]) >> (64 - ROOK_RELEVANT_BITS[squareIndex]);
                         rookAttacks[squareIndex][magicIndex] = generateRookAttacks(squareIndex, occupancy);
 
                     }
@@ -607,7 +616,7 @@ class AttackTable{
         U64 getBishopAttacks(int squareIndex, U64 occupancy){
 
             occupancy &= bishopMasks[squareIndex]; 
-            occupancy *= BISHOP_MAGIC_NUMBERS[squareIndex];
+            occupancy *= bishopMagics[squareIndex];
             occupancy >>= 64 - BISHOP_RELEVANT_BITS[squareIndex];
             return bishopAttacks[squareIndex][occupancy];
 
@@ -617,7 +626,7 @@ class AttackTable{
         U64 getRookAttacks(int squareIndex, U64 occupancy){
             
             occupancy &= rookMasks[squareIndex]; 
-            occupancy *= ROOK_MAGIC_NUMBERS[squareIndex];
+            occupancy *= rookMagics[squareIndex];
             occupancy >>= 64 - ROOK_RELEVANT_BITS[squareIndex];
             return rookAttacks[squareIndex][occupancy];
 
@@ -655,6 +664,10 @@ class MoveList{
         int* getMoves(){
             return moves;
         }
+
+        void resetCount(){
+            count = 0;
+        }
 };
 
 //********Board********
@@ -664,6 +677,8 @@ class Board{
     private:
         
         AttackTable* pAttackTable;
+        MoveList moveList;
+
         U64 bitboards[12];
         U64 occupancies[3];
 
@@ -798,7 +813,9 @@ class Board{
             cout << "Hash: " << hash << "\n\n";
         };
 
-        void generateMoves(MoveList& moveList){
+        void generateMoves(){
+
+            moveList.resetCount();
 
             int startSquareIndex, targetSquareIndex;
             U64 currentPieceBitboard, currentPieceAttacks;
@@ -1261,12 +1278,11 @@ class Board{
             int startSquareIndex = (moveString[0] - 'a') + (8 - (moveString[1] - '0')) * 8;
             int targetSquareIndex = (moveString[2] - 'a') + (8 - (moveString[3] - '0')) * 8;
 
-            MoveList possibleMoves;
-            generateMoves(possibleMoves);
+            generateMoves();
 
-            for(int moveIndex = 0; moveIndex < possibleMoves.getCount(); moveIndex++){
+            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
 
-                int move = possibleMoves.getMoves()[moveIndex];
+                int move = moveList.getMoves()[moveIndex];
 
                 if(startSquareIndex == getStartSquareIndex(move) && targetSquareIndex == getTargetSquareIndex(move)){
 
@@ -1348,9 +1364,14 @@ class Board{
             enPassantSquareIndex = NO_SQUARE_INDEX;
         }
 
+        MoveList getMoveList(){
+            return moveList;
+        }
+
         U64* getBitboards(){
             return bitboards;
         }
+
 
 };
 
@@ -1391,16 +1412,15 @@ class Position{
                 return 1ULL;
             }
 
-            //!TECHNIQUE-A: Dynamic generation of objects
-            MoveList moveList;
-            currentBoard.generateMoves(moveList);
+            currentBoard.generateMoves();
+            MoveList moves = currentBoard.getMoveList();
 
-            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
+            for(int moveIndex = 0; moveIndex < moves.getCount(); moveIndex++){
                 
                 //!TECHNIQUE-A: Dynamic generation of objects
                 Board temporaryBoard = currentBoard;
 
-                if(!currentBoard.makeMove(moveList.getMoves()[moveIndex])){
+                if(!currentBoard.makeMove(moves.getMoves()[moveIndex])){
                     continue;
                 }
 
@@ -1415,14 +1435,15 @@ class Position{
             cout << "\n    Performance test\n\n";
 
             U64 nodes = 0ULL;
-            MoveList moveList;
-            currentBoard.generateMoves(moveList);
+
+            currentBoard.generateMoves();
+            MoveList moves = currentBoard.getMoveList();
 
             auto start = std::chrono::high_resolution_clock::now();
 
-            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
+            for(int moveIndex = 0; moveIndex < moves.getCount(); moveIndex++){
 
-                int currentMove = moveList.getMoves()[moveIndex];
+                int currentMove = moves.getMoves()[moveIndex];
 
                 Board temporaryBoard = currentBoard;
 
@@ -1581,13 +1602,14 @@ class Position{
             }
 
             //!TECHNIQUE-A: Dynamic generation of objects
-            MoveList moveList;
-            currentBoard.generateMoves(moveList);
-            sortMoves(moveList);
+            currentBoard.generateMoves();
+            MoveList moves = currentBoard.getMoveList();
 
-            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
+            sortMoves(moves);
 
-                int currentMove = moveList.getMoves()[moveIndex];
+            for(int moveIndex = 0; moveIndex < moves.getCount(); moveIndex++){
+
+                int currentMove = moves.getMoves()[moveIndex];
                 
                 if(isCapture(currentMove)){
 
@@ -1595,7 +1617,7 @@ class Position{
                     Board temporaryBoard = currentBoard;
                     ply++;
 
-                    if(!currentBoard.makeMove(moveList.getMoves()[moveIndex])){
+                    if(!currentBoard.makeMove(moves.getMoves()[moveIndex])){
                         ply--;
                         continue;
                     }
@@ -1659,21 +1681,22 @@ class Position{
             }
             
             //!TECHNIQUE-A: Dynamic generation of objects
-            MoveList moveList;
-            currentBoard.generateMoves(moveList);
+            currentBoard.generateMoves();
+            MoveList moves = currentBoard.getMoveList();
 
             if(fPVFollow){
-                allowPVScore(moveList);
+                allowPVScore(moves);
             }
-            sortMoves(moveList);
+
+            sortMoves(moves);
 
             int movesSearched = 0;
 
-            for(int moveIndex = 0; moveIndex < moveList.getCount(); moveIndex++){
+            for(int moveIndex = 0; moveIndex < moves.getCount(); moveIndex++){
 
                 //!TECHNIQUE-A: Dynamic generation of objects
                 Board temporaryBoard = currentBoard;
-                int currentMove = moveList.getMoves()[moveIndex];
+                int currentMove = moves.getMoves()[moveIndex];
                 ply++;
 
                 if(!currentBoard.makeMove(currentMove)){
@@ -1842,7 +1865,7 @@ void search(string fenString, int depth){
 
 int main(int argc, char* args[]){
 
-    search(START_POSITION_FEN, 8);
+    search(START_POSITION_FEN, 9);
     return 0;
 }
 
