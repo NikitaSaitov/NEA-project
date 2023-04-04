@@ -66,18 +66,4 @@ void printRelevantBitConstants(){
         std::cout << '\n';
     }
 }
-
-//Calculate and print magic number constants
-void printMagicNumberConstants(){
-
-    std::cout << '\n' << "BISHOP MAGICS: \n\n";
-    for(int squareIndex = 0; squareIndex < 64; squareIndex++){
-        std::cout << findMagicNumber(squareIndex, BISHOP_RELEVANT_BITS[squareIndex], true) << "ULL,\n";
-    }
-
-    std::cout << '\n' << "ROOK MAGICS: \n\n";
-    for(int squareIndex = 0; squareIndex < 64; squareIndex++){
-        std::cout << findMagicNumber(squareIndex, ROOK_RELEVANT_BITS[squareIndex], false) << "ULL,\n";
-    }
-}
 */
