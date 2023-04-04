@@ -4,6 +4,7 @@
 #include <chrono>
 #include <vector>
 #include "const.cpp"
+#include "custom_exception.cpp"
 
 using U64 = unsigned long long;
 using std::string, std::cout;
@@ -89,7 +90,7 @@ inline int getLS1BIndex(U64 bitboard){
         return getPopulationCount((bitboard & -bitboard) - 1);
     //If an empty bitboard is passed
     }else{
-        return -1;
+        throw LSBOfEmptyBitboardException();
     }
 }
 
@@ -192,10 +193,10 @@ inline void printMove(int move){
 
 //********Dynamically generated hash keys********
 //!TECHNIQUE-B: Multi-dimentioanl arrays
-U64 PIECE_KEYS[12][64];
-U64 ENPASSANT_KEYS[64];
-U64 CASTLING_KEYS[16];
-U64 SIDE_KEY; 
+U64 PIECE_KEYS[12][64] = {0};
+U64 ENPASSANT_KEYS[64] = {0};
+U64 CASTLING_KEYS[16] = {0};
+U64 SIDE_KEY = 0; 
 
 //!TECHNIQUE-A: Hashing
 void generateKeys(){
@@ -238,8 +239,8 @@ class AttackTable{
         U64 bishopMasks[64];
         U64 rookMasks[64];
 
-        U64 rookMagics[64];
-        U64 bishopMagics[64];
+        U64 bishopMagics[64] = {0};
+        U64 rookMagics[64] = {0};
 
         //Return a bitboard of pawn attacks for a given squareIndex and side
         U64 maskPawnAttacks(int squareIndex, int sideToMove){
@@ -483,7 +484,7 @@ class AttackTable{
         //!TECHNIQUE-A: Complex user-defined algorithms
         U64 findMagicNumber(int squareIndex, int relevantBits, bool fBishop){
 
-            U64 occupancies[4096], attacks[4096], usedAttacks[4096];
+            U64 occupancies[4096], attacks[4096], usedAttacks[4096] = {0};
             //Assign the attack mask
             U64 attackMask = fBishop ? maskBishopAttacks(squareIndex) : maskRookAttacks(squareIndex);
             //The position of the piece impacts the amount of squares it controls, which influences the number of possible occupancies
@@ -505,8 +506,6 @@ class AttackTable{
                 if(getPopulationCount((attackMask * magicNumber) & 0xFF00000000000000) < 6){
                     continue;
                 }
-
-                memset(usedAttacks, 0, sizeof(usedAttacks));
 
                 //!TECHNIQUE-C: Appropriate choice of simple data types
                 int index;
@@ -531,12 +530,24 @@ class AttackTable{
                 }
             } 
 
-            cout << "MAGIC NUMBER NOT FOUND!\n";
+            throw CannotFindMagicNumberException();
             return 0ULL;
+        }
+
+        void initializeMagicNumbers(){
+
+            for(int squareIndex = 0; squareIndex < 64; squareIndex++){
+                bishopMagics[squareIndex] = findMagicNumber(squareIndex, BISHOP_RELEVANT_BITS[squareIndex], true);
+                rookMagics[squareIndex] = findMagicNumber(squareIndex, ROOK_RELEVANT_BITS[squareIndex], false);
+            }
         }
 
         //Initialize attack tables for the leaping pieces
         void initializeLeapingPieceTables(){
+
+            if(bishopMagics[0] == 0 || rookMagics[0] == 0){
+                throw MagicNumberNotInitializedException();
+            }
 
             for(int squareIndex = 0; squareIndex < 64; squareIndex++){
 
@@ -550,11 +561,6 @@ class AttackTable{
 
         //Initialize attack tables for the sliding pieces
         void initializeSlidingPieceTables(bool fBishop){
-
-            for(int squareIndex = 0; squareIndex < 64; squareIndex++){
-                bishopMagics[squareIndex] = findMagicNumber(squareIndex, BISHOP_RELEVANT_BITS[squareIndex], true);
-                rookMagics[squareIndex] = findMagicNumber(squareIndex, ROOK_RELEVANT_BITS[squareIndex], false);
-            }
 
             for(int squareIndex = 0; squareIndex < 64; squareIndex++){
 
@@ -591,6 +597,7 @@ class AttackTable{
         //Initialize all attack tables
         AttackTable(){
 
+            initializeMagicNumbers();
             initializeLeapingPieceTables();
             initializeSlidingPieceTables(true);
             initializeSlidingPieceTables(false);
@@ -725,6 +732,10 @@ class Board{
         //!TECHNIQUE-A: Hashing
         void generateHash(){
 
+            if(PIECE_KEYS[0][0] == 0 || CASTLING_KEYS[0] == 0 || ENPASSANT_KEYS[0] == 0 || SIDE_KEY == 0){
+                throw HashKeysNotInitializedException();
+            }
+
             for(int currentPiece = whitePawn; currentPiece <= blackKing; currentPiece++){
 
                U64 currentBiboard = bitboards[currentPiece];
@@ -747,7 +758,6 @@ class Board{
             if(sideToMove == black){
                 hash ^= SIDE_KEY;
             }
-
         }
 
     public:
@@ -1867,5 +1877,5 @@ int main(int argc, char* args[]){
 
     search(START_POSITION_FEN, 9);
     return 0;
+	
 }
-
