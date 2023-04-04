@@ -484,7 +484,7 @@ class AttackTable{
         //!TECHNIQUE-A: Complex user-defined algorithms
         U64 findMagicNumber(int squareIndex, int relevantBits, bool fBishop){
 
-            U64 occupancies[4096], attacks[4096], usedAttacks[4096] = {0};
+            U64 occupancies[4096], attacks[4096], usedAttacks[4096];
             //Assign the attack mask
             U64 attackMask = fBishop ? maskBishopAttacks(squareIndex) : maskRookAttacks(squareIndex);
             //The position of the piece impacts the amount of squares it controls, which influences the number of possible occupancies
@@ -507,6 +507,8 @@ class AttackTable{
                     continue;
                 }
 
+                memset(usedAttacks, 0, sizeof(usedAttacks));
+
                 //!TECHNIQUE-C: Appropriate choice of simple data types
                 int index;
                 bool fFail;
@@ -528,7 +530,7 @@ class AttackTable{
                 if(!fFail){
                     return magicNumber;
                 }
-            } 
+            }
 
             throw CannotFindMagicNumberException();
             return 0ULL;
@@ -1877,5 +1879,4 @@ int main(int argc, char* args[]){
 
     search(START_POSITION_FEN, 9);
     return 0;
-	
 }
