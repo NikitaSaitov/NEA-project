@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cstring>
 #include <chrono>
+#include <functional>
 #include "enum.h"
 #include "const.h"    
 #include "bitboard_operations.h"
@@ -188,78 +189,126 @@ class Board{
             cout << "Hash: " << hashKey << "\n\n";
         };
 
+        struct State {
+            U64 currentPieceBitboard;
+            U64 currentPieceAttacks;
+            int startSquareIndex;
+            int targetSquareIndex;
+            MoveList output;
+            int currentPiece;
+        };
+
+        void PickNameYourself1(
+            State& s,
+            int whitePiece,
+            int blackPiece,
+            std::function<U64(void)> getAttacks) {
+            if((sideToMove == white) ? s.currentPiece == whitePiece : s.currentPiece == blackPiece) {
+                while(s.currentPieceBitboard) {
+                    s.startSquareIndex = getLS1BIndex(s.currentPieceBitboard);
+                    s.currentPieceAttacks = getAttacks() & ((sideToMove == white) ? ~occupancies[white] : ~occupancies[black]);
+
+                    while(s.currentPieceAttacks) {
+                        s.targetSquareIndex = getLS1BIndex(s.currentPieceAttacks);
+                        // Quiet moves
+                        if(!getBit(((sideToMove == white) ? occupancies[black] : occupancies[white]), s.targetSquareIndex)) {
+                            s.output.appendMove(s.startSquareIndex, s.targetSquareIndex, s.currentPiece, 0, 0, 0, 0, 0);
+                        } else {
+                            //Captures
+                            s.output.appendMove(s.startSquareIndex, s.targetSquareIndex, s.currentPiece, 0, 1, 0, 0, 0);
+                        }
+                        popBit(s.currentPieceAttacks, s.targetSquareIndex);
+                    }
+                    popBit(s.currentPieceBitboard, s.startSquareIndex);
+                }
+            }
+        }
+
+        void SmthAboutPawns(State& s, int color, std::function<bool()> quiteTest) {
+            int indexShift = color == white ? -8 : +8;
+            int otherColor = color == white ? black : white;
+            int thisKnight = color == white ? whiteKnight : blackKnight;
+            int thisQueen = color == white ? whiteQueen : blackQueen;
+            int lBound = color == white ? a7 : a2;
+            int rBound = color == white ? h7 : h2;
+            int otherLBound = color == white ? a2 : a7;
+            int otherRBound = color == white ? h2 : h7;
+
+
+            while(s.currentPieceBitboard) {
+                
+                s.startSquareIndex = getLS1BIndex(s.currentPieceBitboard);
+                s.targetSquareIndex = s.startSquareIndex + indexShift;
+
+                //Quiet moves
+                if(!quiteTest() && !getBit(occupancies[both], s.targetSquareIndex)){
+                    
+                    if(s.startSquareIndex >= lBound && s.startSquareIndex <= rBound){
+
+                        for(int promotedPiece = thisKnight; promotedPiece <= thisQueen; promotedPiece++){
+                            s.output.appendMove(s.startSquareIndex, s.targetSquareIndex, s.currentPiece, promotedPiece, 0, 0, 0, 0);
+                        }
+                        
+                    }else{
+                        s.output.appendMove(s.startSquareIndex, s.targetSquareIndex, s.currentPiece, 0, 0, 0, 0, 0);
+                        if((s.startSquareIndex >= otherLBound && s.startSquareIndex <= otherRBound) && !getBit(occupancies[both], s.targetSquareIndex + indexShift)){
+                            s.output.appendMove(s.startSquareIndex, s.targetSquareIndex + indexShift, s.currentPiece, 0, 0, 1, 0, 0);
+                        }
+                    }
+                }
+
+                s.currentPieceAttacks = Attacks.getPawnAttacks(color, s.startSquareIndex) & occupancies[otherColor];
+
+                //Captures
+                while (s.currentPieceAttacks) {
+                    
+                    s.targetSquareIndex = getLS1BIndex(s.currentPieceAttacks);
+
+                    if(s.startSquareIndex >= lBound&& s.startSquareIndex <= rBound) {
+
+                        for(int promotedPiece = thisKnight; promotedPiece <= thisQueen; promotedPiece++) {
+                            s.output.appendMove(s.startSquareIndex, s.targetSquareIndex, s.currentPiece, promotedPiece, 1, 0, 0, 0);
+                        }
+
+                    } else {
+                        s.output.appendMove(s.startSquareIndex, s.targetSquareIndex, s.currentPiece, 0, 1, 0, 0, 0);
+                    }
+                    popBit(s.currentPieceAttacks, s.targetSquareIndex);
+                }
+
+                //En passant
+                if(enPassantSquareIndex != NO_SQUARE_INDEX){
+
+                    U64 enPassantAttacks = Attacks.getPawnAttacks(color, s.startSquareIndex) & (1ULL << enPassantSquareIndex);
+                    if(enPassantAttacks){
+                        int enPassantTarget = getLS1BIndex(enPassantAttacks);
+                        s.output.appendMove(s.startSquareIndex, enPassantTarget, s.currentPiece, 0, 1, 0, 1, 0);
+                    }
+                }
+                popBit(s.currentPieceBitboard, s.startSquareIndex);
+            }
+        }
+
         MoveList generateMoves(){
 
-            int startSquareIndex, targetSquareIndex;
-            U64 currentPieceBitboard, currentPieceAttacks;
-            MoveList output; 
+            State s;
 
-            for(int currentPiece = whitePawn; currentPiece <= blackKing; currentPiece++){
+            for(s.currentPiece = whitePawn; s.currentPiece <= blackKing; s.currentPiece++){
 
-                currentPieceBitboard = bitboards[currentPiece];
+                s.currentPieceBitboard = bitboards[s.currentPiece];
 
                 //White pawn moves & castling
                 if(sideToMove == white){
 
-                    switch (currentPiece)
+                    switch (s.currentPiece)
                     {
                     //Pawns
                     case whitePawn:
 
-                        while(currentPieceBitboard){
-                        
-                            startSquareIndex = getLS1BIndex(currentPieceBitboard);
-                            targetSquareIndex = startSquareIndex - 8;
-
-                            //Quiet moves
-                            if(!(targetSquareIndex < a8) && !getBit(occupancies[both], targetSquareIndex)){
-                                
-                                if(startSquareIndex >= a7 && startSquareIndex <= h7){
-
-                                    for(int promotedPiece = whiteKnight; promotedPiece <= whiteQueen; promotedPiece++){
-                                        output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, promotedPiece, 0, 0, 0, 0);
-                                    }
-
-                                }else{
-
-                                    output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
-                                    if((startSquareIndex >= a2 && startSquareIndex <= h2) && !getBit(occupancies[both], targetSquareIndex - 8)){
-                                        output.appendMove(startSquareIndex, targetSquareIndex - 8, currentPiece, 0, 0, 1, 0, 0);
-                                    }
-
-                                }
-                            }
-
-                            //Captures
-                            currentPieceAttacks = Attacks.getPawnAttacks(white, startSquareIndex) & occupancies[black];
-
-                            while (currentPieceAttacks){
-                                
-                                targetSquareIndex = getLS1BIndex(currentPieceAttacks);
-
-                                if(startSquareIndex >= a7 && startSquareIndex <= h7){
-
-                                    for(int promotedPiece = whiteKnight; promotedPiece <= whiteQueen; promotedPiece++){
-                                        output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, promotedPiece, 1, 0, 0, 0);
-                                    }
-
-                                }else{
-                                    output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
-                                }
-                                popBit(currentPieceAttacks, targetSquareIndex);
-                            }
-
-                            //En passant
-                            if(enPassantSquareIndex != NO_SQUARE_INDEX){
-
-                                U64 enPassantAttacks = Attacks.getPawnAttacks(white, startSquareIndex) & (1ULL << enPassantSquareIndex);
-                                if(enPassantAttacks){
-                                    int enPassantTarget = getLS1BIndex(enPassantAttacks);
-                                    output.appendMove(startSquareIndex, enPassantTarget, currentPiece, 0, 1, 0, 1, 0);
-                                }
-                            }
-                            popBit(currentPieceBitboard, startSquareIndex);
-                        }          
+                        SmthAboutPawns(s, white, [&]() {
+                            return s.targetSquareIndex < a8;
+                        });
+ 
                         break;
                     
                     //Castling
@@ -267,14 +316,14 @@ class Board{
 
                         if(canCastle & K){
                             if(!getBit(occupancies[both], f1) && !getBit(occupancies[both], g1) && !isSquareAttacked(e1, black) && !isSquareAttacked(f1, black)){
-                                output.appendMove(e1, g1, currentPiece, 0, 0, 0, 0, 1);
+                                s.output.appendMove(e1, g1, s.currentPiece, 0, 0, 0, 0, 1);
                             }
                         }
 
                         if(canCastle & Q){
                            if(!getBit(occupancies[both], d1) && !getBit(occupancies[both], c1) && !getBit(occupancies[both], b1) 
                            && !isSquareAttacked(e1, black) && !isSquareAttacked(d1, black)){
-                                output.appendMove(e1, c1, currentPiece, 0, 0, 0, 0, 1);
+                                s.output.appendMove(e1, c1, s.currentPiece, 0, 0, 0, 0, 1);
                             } 
                         }
                         break;
@@ -283,63 +332,15 @@ class Board{
                 //Black pawn moves & castling
                 }else if(sideToMove == black){
 
-                    switch (currentPiece)
+                    switch (s.currentPiece)
                     {
                     //Pawns
                     case blackPawn:
 
-                        while(currentPieceBitboard){
-                            
-                            startSquareIndex = getLS1BIndex(currentPieceBitboard);
-                            targetSquareIndex = startSquareIndex + 8;
+                        SmthAboutPawns(s, black, [&]() {
+                            return s.targetSquareIndex > h1;
+                        });
 
-                            //Quiet moves
-                            if(!(targetSquareIndex > h1) && !getBit(occupancies[both], targetSquareIndex)){
-                                
-                                if(startSquareIndex >= a2 && startSquareIndex <= h2){
-
-                                    for(int promotedPiece = blackKnight; promotedPiece <= blackQueen; promotedPiece++){
-                                        output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, promotedPiece, 0, 0, 0, 0);
-                                    }
-                                    
-                                }else{
-                                    output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
-                                    if((startSquareIndex >= a7 && startSquareIndex <= h7) && !getBit(occupancies[both], targetSquareIndex + 8)){
-                                        output.appendMove(startSquareIndex, targetSquareIndex + 8, currentPiece, 0, 0, 1, 0, 0);
-                                    }
-                                }
-                            }
-
-                            currentPieceAttacks = Attacks.getPawnAttacks(black, startSquareIndex) & occupancies[white];
-
-                            //Captures
-                            while (currentPieceAttacks){
-                                
-                                targetSquareIndex = getLS1BIndex(currentPieceAttacks);
-
-                                if(startSquareIndex >= a2 && startSquareIndex <= h2){
-
-                                    for(int promotedPiece = blackKnight; promotedPiece <= blackQueen; promotedPiece++){
-                                        output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, promotedPiece, 1, 0, 0, 0);
-                                    }
-
-                                }else{
-                                    output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
-                                }
-                                popBit(currentPieceAttacks, targetSquareIndex);
-                            }
-
-                            //En passant
-                            if(enPassantSquareIndex != NO_SQUARE_INDEX){
-
-                                U64 enPassantAttacks = Attacks.getPawnAttacks(black, startSquareIndex) & (1ULL << enPassantSquareIndex);
-                                if(enPassantAttacks){
-                                    int enPassantTarget = getLS1BIndex(enPassantAttacks);
-                                    output.appendMove(startSquareIndex, enPassantTarget, currentPiece, 0, 1, 0, 1, 0);
-                                }
-                            }
-                            popBit(currentPieceBitboard, startSquareIndex);
-                        }
                         break;
                     
                     //Castling
@@ -347,14 +348,14 @@ class Board{
 
                         if(canCastle & k){
                             if(!getBit(occupancies[both], f8) && !getBit(occupancies[both], g8) && !isSquareAttacked(e8, white) && !isSquareAttacked(f8, white)){
-                                output.appendMove(e8, g8, currentPiece, 0, 0, 0, 0, 1);
+                                s.output.appendMove(e8, g8, s.currentPiece, 0, 0, 0, 0, 1);
                             }
                         }
 
                         if(canCastle & q){
                            if(!getBit(occupancies[both], d8) && !getBit(occupancies[both], c8) && !getBit(occupancies[both], b8) 
                            && !isSquareAttacked(e8, white) && !isSquareAttacked(d8, white)){
-                                output.appendMove(e8, c8, currentPiece, 0, 0, 0, 0, 1);
+                                s.output.appendMove(e8, c8, s.currentPiece, 0, 0, 0, 0, 1);
                             } 
                         }
                         break;
@@ -362,131 +363,22 @@ class Board{
                 }
 
                 //Knights
-                if((sideToMove == white) ? currentPiece == whiteKnight : currentPiece == blackKnight){
-
-                    while(currentPieceBitboard){
-
-                        startSquareIndex = getLS1BIndex(currentPieceBitboard);
-                        currentPieceAttacks = Attacks.getKnightAttacks(startSquareIndex) & ((sideToMove == white) ? ~occupancies[white] : ~occupancies[black]);
-
-                        while(currentPieceAttacks){
-
-                            targetSquareIndex = getLS1BIndex(currentPieceAttacks);
-
-                            //Quiet moves
-                            if(!getBit(((sideToMove == white) ? occupancies[black] : occupancies[white]), targetSquareIndex)){
-                                output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
-                            }else{
-                                //Captures
-                                output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
-                            }
-                            popBit(currentPieceAttacks, targetSquareIndex);
-                        }
-                        popBit(currentPieceBitboard, startSquareIndex);
-                    }
-                }
-
+                PickNameYourself1(s, whiteKnight, blackKnight, 
+                    [&]() {return Attacks.getKnightAttacks(s.startSquareIndex);});
                 //Bishops
-                if((sideToMove == white) ? currentPiece == whiteBishop : currentPiece == blackBishop){
-
-                    while(currentPieceBitboard){
-
-                        startSquareIndex = getLS1BIndex(currentPieceBitboard);
-                        currentPieceAttacks = Attacks.getBishopAttacks(startSquareIndex, occupancies[both]) & ((sideToMove == white) ? ~occupancies[white] : ~occupancies[black]);
-
-                        while(currentPieceAttacks){
-
-                            targetSquareIndex = getLS1BIndex(currentPieceAttacks);
-
-                            //Quiet moves
-                            if(!getBit(((sideToMove == white) ? occupancies[black] : occupancies[white]), targetSquareIndex)){
-                                output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
-                            }else{
-                                //Captures
-                                output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
-                            }
-                            popBit(currentPieceAttacks, targetSquareIndex);
-                        }
-                        popBit(currentPieceBitboard, startSquareIndex);
-                    }
-                }
-                
+                PickNameYourself1(s, whiteBishop, blackBishop, 
+                    [&]() {return Attacks.getBishopAttacks(s.startSquareIndex, occupancies[both]);});
                 //Rooks
-                if((sideToMove == white) ? currentPiece == whiteRook : currentPiece == blackRook){
-
-                    while(currentPieceBitboard){
-
-                        startSquareIndex = getLS1BIndex(currentPieceBitboard);
-                        currentPieceAttacks = Attacks.getRookAttacks(startSquareIndex, occupancies[both]) & ((sideToMove == white) ? ~occupancies[white] : ~occupancies[black]);
-
-                        while(currentPieceAttacks){
-
-                            targetSquareIndex = getLS1BIndex(currentPieceAttacks);
-
-                            //Quiet moves
-                            if(!getBit(((sideToMove == white) ? occupancies[black] : occupancies[white]), targetSquareIndex)){
-                                output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
-                            }else{
-                                //Captures
-                                output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
-                            }
-                            popBit(currentPieceAttacks, targetSquareIndex);
-                        }
-                        popBit(currentPieceBitboard, startSquareIndex);
-                    }
-                }
-                
+                PickNameYourself1(s, whiteRook, blackRook, 
+                    [&]() {return Attacks.getRookAttacks(s.startSquareIndex, occupancies[both]);});             
                 //Queens
-                if((sideToMove == white) ? currentPiece == whiteQueen : currentPiece == blackQueen){
-
-                    while(currentPieceBitboard){
-
-                        startSquareIndex = getLS1BIndex(currentPieceBitboard);
-                        currentPieceAttacks = Attacks.getQueenAttacks(startSquareIndex, occupancies[both]) & ((sideToMove == white) ? ~occupancies[white] : ~occupancies[black]);
-
-                        while(currentPieceAttacks){
-
-                            targetSquareIndex = getLS1BIndex(currentPieceAttacks);
-
-                            //Quiet
-                            if(!getBit(((sideToMove == white) ? occupancies[black] : occupancies[white]), targetSquareIndex)){
-                                output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
-                            }else{
-                                //Captures
-                                output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
-                            }
-                            popBit(currentPieceAttacks, targetSquareIndex);
-                        }
-                        popBit(currentPieceBitboard, startSquareIndex);
-                    }
-                }
-            
+                PickNameYourself1(s, whiteQueen, blackQueen, 
+                    [&]() {return Attacks.getQueenAttacks(s.startSquareIndex, occupancies[both]);});           
                 //King
-                if((sideToMove == white) ? currentPiece == whiteKing : currentPiece == blackKing){
-
-                    while(currentPieceBitboard){
-
-                        startSquareIndex = getLS1BIndex(currentPieceBitboard);
-                        currentPieceAttacks = Attacks.getKingAttacks(startSquareIndex) & ((sideToMove == white) ? ~occupancies[white] : ~occupancies[black]);
-
-                        while(currentPieceAttacks){
-
-                            targetSquareIndex = getLS1BIndex(currentPieceAttacks);
-
-                            //Quiet moves
-                            if(!getBit(((sideToMove == white) ? occupancies[black] : occupancies[white]), targetSquareIndex)){
-                                output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 0, 0, 0, 0);
-                            }else{
-                                //Captures
-                                output.appendMove(startSquareIndex, targetSquareIndex, currentPiece, 0, 1, 0, 0, 0);
-                            }
-                            popBit(currentPieceAttacks, targetSquareIndex);
-                        }
-                        popBit(currentPieceBitboard, startSquareIndex);
-                    }
-                }
+                PickNameYourself1(s, whiteKing, blackKing, 
+                    [&]() {return Attacks.getKingAttacks(s.startSquareIndex);});
             }
-            return output;
+            return s.output;
         }
 
         bool isKingInCheck(){
