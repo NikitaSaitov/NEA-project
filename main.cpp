@@ -7,12 +7,12 @@
 #include "const.h"    
 #include "bitboard_operations.h"
 #include "random.h"
-#include "magic_bitboards.h"
+#include "magics.h"
 #include "engine_exceptions.h"
 #include "AttackTable.h"
 #include "move_encoding.h"
 #include "MoveList.h"
-#include "TranspositionTable.h"
+#include "TranspositionNode.h"
 
 using U64 = unsigned long long;
 using std::string, std::cout, std::chrono::high_resolution_clock;
@@ -20,7 +20,7 @@ using std::string, std::cout, std::chrono::high_resolution_clock;
 //********Global Class Instances********\\
 
 AttackTable Attacks;
-TranspositionTable Transpositions[MAX_HASH_SIZE];
+TranspositionNode TranspositionTable[MAX_HASH_SIZE];
 
 //********Dynamically generated hash keys********\\
 
@@ -192,193 +192,168 @@ class Board{
         struct State {
             U64 currentPieceBitboard;
             U64 currentPieceAttacks;
+            MoveList output;
             int startSquareIndex;
             int targetSquareIndex;
-            MoveList output;
             int currentPiece;
         };
 
-        void PickNameYourself1(
-            State& s,
-            int whitePiece,
-            int blackPiece,
-            std::function<U64(void)> getAttacks) {
-            if((sideToMove == white) ? s.currentPiece == whitePiece : s.currentPiece == blackPiece) {
-                while(s.currentPieceBitboard) {
-                    s.startSquareIndex = getLS1BIndex(s.currentPieceBitboard);
-                    s.currentPieceAttacks = getAttacks() & ((sideToMove == white) ? ~occupancies[white] : ~occupancies[black]);
+        void generatePawnMoves(State& state, int color, std::function<bool()> outsideBoard) {
 
-                    while(s.currentPieceAttacks) {
-                        s.targetSquareIndex = getLS1BIndex(s.currentPieceAttacks);
-                        // Quiet moves
-                        if(!getBit(((sideToMove == white) ? occupancies[black] : occupancies[white]), s.targetSquareIndex)) {
-                            s.output.appendMove(s.startSquareIndex, s.targetSquareIndex, s.currentPiece, 0, 0, 0, 0, 0);
-                        } else {
-                            //Captures
-                            s.output.appendMove(s.startSquareIndex, s.targetSquareIndex, s.currentPiece, 0, 1, 0, 0, 0);
-                        }
-                        popBit(s.currentPieceAttacks, s.targetSquareIndex);
-                    }
-                    popBit(s.currentPieceBitboard, s.startSquareIndex);
-                }
-            }
-        }
+            int indexShift = (color == white) ? -8 : +8;
+            int oppositeColor = (color == white) ? black : white;
+            int thisPawn = (color == white) ? whitePawn : blackPawn;
+            int thisKnight = (color == white) ? whiteKnight : blackKnight;
+            int thisQueen = (color == white) ? whiteQueen : blackQueen;
+            int promotionLBound = (color == white) ? a7 : a2;
+            int promotionRBound = (color == white) ? h7 : h2;
+            int doublePushLBound = (color == white) ? a2 : a7;
+            int doublePushRBound = (color == white) ? h2 : h7;
 
-        void SmthAboutPawns(State& s, int color, std::function<bool()> quiteTest) {
-            int indexShift = color == white ? -8 : +8;
-            int otherColor = color == white ? black : white;
-            int thisKnight = color == white ? whiteKnight : blackKnight;
-            int thisQueen = color == white ? whiteQueen : blackQueen;
-            int lBound = color == white ? a7 : a2;
-            int rBound = color == white ? h7 : h2;
-            int otherLBound = color == white ? a2 : a7;
-            int otherRBound = color == white ? h2 : h7;
+            state.currentPieceBitboard = bitboards[thisPawn];
 
-
-            while(s.currentPieceBitboard) {
+            while(state.currentPieceBitboard) {
                 
-                s.startSquareIndex = getLS1BIndex(s.currentPieceBitboard);
-                s.targetSquareIndex = s.startSquareIndex + indexShift;
+                state.startSquareIndex = getLS1BIndex(state.currentPieceBitboard);
+                state.targetSquareIndex = state.startSquareIndex + indexShift;
 
                 //Quiet moves
-                if(!quiteTest() && !getBit(occupancies[both], s.targetSquareIndex)){
+                if(!outsideBoard() && !getBit(occupancies[both], state.targetSquareIndex)){
                     
-                    if(s.startSquareIndex >= lBound && s.startSquareIndex <= rBound){
+                    if(state.startSquareIndex >= promotionLBound && state.startSquareIndex <= promotionRBound){
 
                         for(int promotedPiece = thisKnight; promotedPiece <= thisQueen; promotedPiece++){
-                            s.output.appendMove(s.startSquareIndex, s.targetSquareIndex, s.currentPiece, promotedPiece, 0, 0, 0, 0);
+                            state.output.appendMove(state.startSquareIndex, state.targetSquareIndex, state.currentPiece, promotedPiece, 0, 0, 0, 0);
                         }
                         
                     }else{
-                        s.output.appendMove(s.startSquareIndex, s.targetSquareIndex, s.currentPiece, 0, 0, 0, 0, 0);
-                        if((s.startSquareIndex >= otherLBound && s.startSquareIndex <= otherRBound) && !getBit(occupancies[both], s.targetSquareIndex + indexShift)){
-                            s.output.appendMove(s.startSquareIndex, s.targetSquareIndex + indexShift, s.currentPiece, 0, 0, 1, 0, 0);
+
+                        state.output.appendMove(state.startSquareIndex, state.targetSquareIndex, state.currentPiece, 0, 0, 0, 0, 0);
+
+                        if((state.startSquareIndex >= doublePushLBound && state.startSquareIndex <= doublePushRBound) && !getBit(occupancies[both], state.targetSquareIndex + indexShift)){
+                            state.output.appendMove(state.startSquareIndex, state.targetSquareIndex + indexShift, state.currentPiece, 0, 0, 1, 0, 0);
                         }
                     }
                 }
 
-                s.currentPieceAttacks = Attacks.getPawnAttacks(color, s.startSquareIndex) & occupancies[otherColor];
+                state.currentPieceAttacks = Attacks.getPawnAttacks(color, state.startSquareIndex) & occupancies[oppositeColor];
 
                 //Captures
-                while (s.currentPieceAttacks) {
+                while (state.currentPieceAttacks) {
                     
-                    s.targetSquareIndex = getLS1BIndex(s.currentPieceAttacks);
+                    state.targetSquareIndex = getLS1BIndex(state.currentPieceAttacks);
 
-                    if(s.startSquareIndex >= lBound&& s.startSquareIndex <= rBound) {
+                    if(state.startSquareIndex >= promotionLBound&& state.startSquareIndex <= promotionRBound) {
 
                         for(int promotedPiece = thisKnight; promotedPiece <= thisQueen; promotedPiece++) {
-                            s.output.appendMove(s.startSquareIndex, s.targetSquareIndex, s.currentPiece, promotedPiece, 1, 0, 0, 0);
+                            state.output.appendMove(state.startSquareIndex, state.targetSquareIndex, state.currentPiece, promotedPiece, 1, 0, 0, 0);
                         }
 
-                    } else {
-                        s.output.appendMove(s.startSquareIndex, s.targetSquareIndex, s.currentPiece, 0, 1, 0, 0, 0);
+                    }else{
+                        state.output.appendMove(state.startSquareIndex, state.targetSquareIndex, state.currentPiece, 0, 1, 0, 0, 0);
                     }
-                    popBit(s.currentPieceAttacks, s.targetSquareIndex);
+
+                    popBit(state.currentPieceAttacks, state.targetSquareIndex);
                 }
 
                 //En passant
                 if(enPassantSquareIndex != NO_SQUARE_INDEX){
 
-                    U64 enPassantAttacks = Attacks.getPawnAttacks(color, s.startSquareIndex) & (1ULL << enPassantSquareIndex);
+                    U64 enPassantAttacks = Attacks.getPawnAttacks(color, state.startSquareIndex) & (1ULL << enPassantSquareIndex);
+
                     if(enPassantAttacks){
+
                         int enPassantTarget = getLS1BIndex(enPassantAttacks);
-                        s.output.appendMove(s.startSquareIndex, enPassantTarget, s.currentPiece, 0, 1, 0, 1, 0);
+                        state.output.appendMove(state.startSquareIndex, enPassantTarget, state.currentPiece, 0, 1, 0, 1, 0);
+
                     }
                 }
-                popBit(s.currentPieceBitboard, s.startSquareIndex);
+                popBit(state.currentPieceBitboard, state.startSquareIndex);
             }
         }
 
+        void generatePieceMoves(State& state, int whitePiece, int blackPiece, std::function<U64(void)> getAttacks){
+
+            state.currentPieceBitboard = (sideToMove == white) ? bitboards[whitePiece] : bitboards[blackPiece];
+
+            while(state.currentPieceBitboard) {
+
+                state.startSquareIndex = getLS1BIndex(state.currentPieceBitboard);
+                state.currentPieceAttacks = getAttacks() & ((sideToMove == white) ? ~occupancies[white] : ~occupancies[black]);
+
+                while(state.currentPieceAttacks) {
+
+                    state.targetSquareIndex = getLS1BIndex(state.currentPieceAttacks);
+
+                    // Quiet moves
+                    if(!getBit(((sideToMove == white) ? occupancies[black] : occupancies[white]), state.targetSquareIndex)) {
+                        state.output.appendMove(state.startSquareIndex, state.targetSquareIndex, state.currentPiece, 0, 0, 0, 0, 0);
+                    //Captures
+                    }else{
+                        state.output.appendMove(state.startSquareIndex, state.targetSquareIndex, state.currentPiece, 0, 1, 0, 0, 0);
+                    }
+                    popBit(state.currentPieceAttacks, state.targetSquareIndex);
+                }
+                popBit(state.currentPieceBitboard, state.startSquareIndex);
+            }
+            
+        }
+   
         MoveList generateMoves(){
 
-            State s;
+            State state;
 
-            for(s.currentPiece = whitePawn; s.currentPiece <= blackKing; s.currentPiece++){
+            //White pawn moves & castling
+            if(sideToMove == white){
+                
+                generatePawnMoves(state, white, [&]() {return state.targetSquareIndex < a8;});
 
-                s.currentPieceBitboard = bitboards[s.currentPiece];
+                if(canCastle & K){
 
-                //White pawn moves & castling
-                if(sideToMove == white){
-
-                    switch (s.currentPiece)
-                    {
-                    //Pawns
-                    case whitePawn:
-
-                        SmthAboutPawns(s, white, [&]() {
-                            return s.targetSquareIndex < a8;
-                        });
- 
-                        break;
-                    
-                    //Castling
-                    case whiteKing:
-
-                        if(canCastle & K){
-                            if(!getBit(occupancies[both], f1) && !getBit(occupancies[both], g1) && !isSquareAttacked(e1, black) && !isSquareAttacked(f1, black)){
-                                s.output.appendMove(e1, g1, s.currentPiece, 0, 0, 0, 0, 1);
-                            }
-                        }
-
-                        if(canCastle & Q){
-                           if(!getBit(occupancies[both], d1) && !getBit(occupancies[both], c1) && !getBit(occupancies[both], b1) 
-                           && !isSquareAttacked(e1, black) && !isSquareAttacked(d1, black)){
-                                s.output.appendMove(e1, c1, s.currentPiece, 0, 0, 0, 0, 1);
-                            } 
-                        }
-                        break;
-                    }
-
-                //Black pawn moves & castling
-                }else if(sideToMove == black){
-
-                    switch (s.currentPiece)
-                    {
-                    //Pawns
-                    case blackPawn:
-
-                        SmthAboutPawns(s, black, [&]() {
-                            return s.targetSquareIndex > h1;
-                        });
-
-                        break;
-                    
-                    //Castling
-                    case blackKing:
-
-                        if(canCastle & k){
-                            if(!getBit(occupancies[both], f8) && !getBit(occupancies[both], g8) && !isSquareAttacked(e8, white) && !isSquareAttacked(f8, white)){
-                                s.output.appendMove(e8, g8, s.currentPiece, 0, 0, 0, 0, 1);
-                            }
-                        }
-
-                        if(canCastle & q){
-                           if(!getBit(occupancies[both], d8) && !getBit(occupancies[both], c8) && !getBit(occupancies[both], b8) 
-                           && !isSquareAttacked(e8, white) && !isSquareAttacked(d8, white)){
-                                s.output.appendMove(e8, c8, s.currentPiece, 0, 0, 0, 0, 1);
-                            } 
-                        }
-                        break;
+                    if(!getBit(occupancies[both], f1) && !getBit(occupancies[both], g1) && !isSquareAttacked(e1, black) && !isSquareAttacked(f1, black)){
+                        state.output.appendMove(e1, g1, whiteKing, 0, 0, 0, 0, 1);
                     }
                 }
 
-                //Knights
-                PickNameYourself1(s, whiteKnight, blackKnight, 
-                    [&]() {return Attacks.getKnightAttacks(s.startSquareIndex);});
-                //Bishops
-                PickNameYourself1(s, whiteBishop, blackBishop, 
-                    [&]() {return Attacks.getBishopAttacks(s.startSquareIndex, occupancies[both]);});
-                //Rooks
-                PickNameYourself1(s, whiteRook, blackRook, 
-                    [&]() {return Attacks.getRookAttacks(s.startSquareIndex, occupancies[both]);});             
-                //Queens
-                PickNameYourself1(s, whiteQueen, blackQueen, 
-                    [&]() {return Attacks.getQueenAttacks(s.startSquareIndex, occupancies[both]);});           
-                //King
-                PickNameYourself1(s, whiteKing, blackKing, 
-                    [&]() {return Attacks.getKingAttacks(s.startSquareIndex);});
+                if(canCastle & Q){
+
+                    if(!getBit(occupancies[both], d1) && !getBit(occupancies[both], c1) && !getBit(occupancies[both], b1) && !isSquareAttacked(e1, black) && !isSquareAttacked(d1, black)){
+                        state.output.appendMove(e1, c1, whiteKing, 0, 0, 0, 0, 1);
+                    } 
+                }
+
+            //Black pawn moves & castling
+            }else if(sideToMove == black){
+
+                generatePawnMoves(state, black, [&]() {return state.targetSquareIndex > h1;});
+                
+                if(canCastle & k){
+
+                    if(!getBit(occupancies[both], f8) && !getBit(occupancies[both], g8) && !isSquareAttacked(e8, white) && !isSquareAttacked(f8, white)){
+                        state.output.appendMove(e8, g8, blackKing, 0, 0, 0, 0, 1);
+                    }
+                }
+
+                if(canCastle & q){
+
+                    if(!getBit(occupancies[both], d8) && !getBit(occupancies[both], c8) && !getBit(occupancies[both], b8) && !isSquareAttacked(e8, white) && !isSquareAttacked(d8, white)){
+                        state.output.appendMove(e8, c8, blackKing, 0, 0, 0, 0, 1);
+                    } 
+                }
             }
-            return s.output;
+
+            //Knight moves
+            generatePieceMoves(state, whiteKnight, blackKnight, [&]() {return Attacks.getKnightAttacks(state.startSquareIndex);});
+            //Bishop moves
+            generatePieceMoves(state, whiteBishop, blackBishop, [&]() {return Attacks.getBishopAttacks(state.startSquareIndex, occupancies[both]);});
+            //Rook moves
+            generatePieceMoves(state, whiteRook, blackRook, [&]() {return Attacks.getRookAttacks(state.startSquareIndex, occupancies[both]);});             
+            //Queen moves
+            generatePieceMoves(state, whiteQueen, blackQueen, [&]() {return Attacks.getQueenAttacks(state.startSquareIndex, occupancies[both]);});           
+            //King moves
+            generatePieceMoves(state, whiteKing, blackKing, [&]() {return Attacks.getKingAttacks(state.startSquareIndex);});
+            
+            return state.output;
         }
 
         bool isKingInCheck(){
@@ -1162,4 +1137,3 @@ int main(int argc, char* args[]){
     search(START_POSITION_FEN, 9);
     return 0;
 }
-
