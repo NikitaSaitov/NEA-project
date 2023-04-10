@@ -1,5 +1,5 @@
-#ifndef MAGIC_BITBOARDS_H
-#define MAGIC_BITBOARDS_H
+#ifndef MAGICS_H
+#define MAGICS_H
 
 using U64 = unsigned long long;
 
