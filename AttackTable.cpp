@@ -1,6 +1,6 @@
 #include "AttackTable.h"
 #include "bitboard_operations.h"
-#include "magic_bitboards.h"
+#include "magics.h"
 #include "engine_exceptions.h"
 #include "const.h"
 
