@@ -735,6 +735,8 @@ class Position{
             U64 nodes = 0ULL;
             MoveList moves = currentBoard.generateMoves();
 
+            auto start = std::chrono::high_resolution_clock::now();
+
             for(int moveIndex = 0; moveIndex < moves.getCount(); moveIndex++){
 
                 int currentMove = moves.getMoves()[moveIndex];
@@ -758,6 +760,7 @@ class Position{
 
             cout << "\nDepth: " << depth;
             cout << "\nTotal number of nodes: " << nodes;
+            std::cout << "\nTest time: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " mircoseconds\n\n";
         }
 
         void setPVScore(MoveList& moveList){
@@ -1134,6 +1137,6 @@ void search(string fenString, int depth){
 
 int main(int argc, char* args[]){
 
-    search(START_POSITION_FEN, 9);
+    search(START_POSITION_FEN, 10);
     return 0;
 }
