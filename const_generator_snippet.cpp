@@ -1,5 +1,5 @@
 /*
-Calculate and print masking constants
+//Calculate and print masking constants
 void printMaskingConstants(){
 
     U64 notABitboard = 0, notABBitboard = 0, notHBitboard = 0, notGHBitboard = 0;
@@ -45,7 +45,7 @@ void printMaskingConstants(){
     printBitboard(notGHBitboard);
 }
 
-Calculate and print relevant bit constants
+//Calculate and print relevant bit constants
 void printRelevantBitConstants(){
 
     std::cout << '\n' << "BISHOP RELEVANT BITS: \n\n";
