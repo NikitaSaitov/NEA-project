@@ -3,7 +3,7 @@
 #include <cstring>
 #include <chrono>
 #include <vector>
-#include "const.cpp"
+#include "const.h"
 
 using U64 = unsigned long long;
 
@@ -178,9 +178,9 @@ inline bool isCastling(int move){
 
 inline void printMove(int move){
     if(getPromotedPiece(move)){
-       std::cout << pSQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(move)] << pSQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(move)] << PIECE_INDEX_TO_ASCII[getPromotedPiece(move)];
+       std::cout << SQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(move)] << SQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(move)] << PIECE_INDEX_TO_ASCII[getPromotedPiece(move)];
     }else{
-       std::cout << pSQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(move)] << pSQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(move)];
+       std::cout << SQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(move)] << SQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(move)];
     }
 }
 
@@ -658,7 +658,7 @@ void printState(){
     //Special position details
     std::cout << "Turn: " << ((sideToMove != NO_SIDE_TO_MOVE) ? ((!sideToMove) ? "white" : "black") : "not specified") << '\n';
     std::cout << "Can castle: " << ((canCastle & K) ? 'K' : '-') << ((canCastle & Q) ? 'Q' : '-') << ((canCastle & k) ? 'k' : '-') << ((canCastle & q) ? 'q' : '-') << '\n';
-    std::cout << "EnPassant square: " << ((enPassantSquareIndex != NO_SQUARE_INDEX) ? pSQUARE_INDEX_TO_COORDINATES[enPassantSquareIndex] : "no square") << '\n';
+    std::cout << "EnPassant square: " << ((enPassantSquareIndex != NO_SQUARE_INDEX) ? SQUARE_INDEX_TO_COORDINATES[enPassantSquareIndex] : "no square") << '\n';
 };
 
 void appendPseudolegalMoves(MoveList& moveList){
@@ -1279,7 +1279,7 @@ void perftDebugInfo(int depth){
         canCastle = tempCastle;
         enPassantSquareIndex = tempEnPass;
 
-        std::cout << "Move: "<< pSQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(currentMove)] << pSQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(currentMove)]; 
+        std::cout << "Move: "<< SQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(currentMove)] << SQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(currentMove)]; 
         std::cout << ((getPromotedPiece(currentMove) != 0) ? PIECE_INDEX_TO_ASCII[getPromotedPiece(currentMove)] : ' ');
         std::cout << "\tnodes: " << currentNodes << '\n';
 
