@@ -1,3 +1,4 @@
+/*
 //********Libraries, files and custom types********
 #include <iostream>
 #include <cstring>
@@ -20,10 +21,10 @@ enum {
     a1, b1, c1, d1, e1, f1, g1, h1
 };
 
-/*
-Convert a square into the squareIndex from the black piece perspective
-Used in the staticEvaluate() function
-*/
+
+//Convert a square into the squareIndex from the black piece perspective
+//Used in the staticEvaluate() function
+
 const int OPPOSITE_SIDE[64] = {
 	a1, b1, c1, d1, e1, f1, g1, h1,
 	a2, b2, c2, d2, e2, f2, g2, h2,
@@ -1302,3 +1303,4 @@ int main(int argc, char* args[]){
     return 0;
 
 }
+*/
