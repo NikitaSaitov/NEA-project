@@ -1,5 +1,5 @@
 #include <cstring>
-#include "magic_bitboards.h"
+#include "magics.h"
 #include "bitboard_operations.h"
 #include "engine_exceptions.h"
 #include "random.h"
