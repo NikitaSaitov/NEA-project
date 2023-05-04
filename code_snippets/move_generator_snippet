@@ -75,7 +75,7 @@ void generatePawnMoves(MoveList& output, int color){
        void generatePieceMoves(MoveList& output, int piece, std::function<U64(int)> getAttacks){
 
        int startSquareIndex, targetSquareIndex;
-       U64 pieceBitboard = bitboards[piece], pieceAttacks;
+       U64 pieceBitboard = bitboards[piece], pieceAttacks; 
 
        while(pieceBitboard){
 
