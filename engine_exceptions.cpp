@@ -1,21 +1,19 @@
 #include "engine_exceptions.h"
 
-const char* LSBOfEmptyBitboardException::what()
-{
-    return "Cannot return the LSB of an empty bitboard";
-}
+extern "C" {
 
-const char* HashKeysNotInitializedException::what()
-{
-    return "Hash keys not initialized";
-}
+    //Default message override
+    const char* HashKeysNotInitialisedException::what(){
+        return "Invalid hash keys: hash keys not initialised";
+    }
 
-const char* CannotFindMagicNumberException::what()
-{
-    return "Could not find a magic number";
-}
+    //Default message override
+    const char* CannotFindMagicNumberException::what(){
+        return "Invalid magic numbers: magic number not found";
+    }
 
-const char* MagicNumberNotInitializedException::what()
-{
-    return "Magic numbers not initialized";
+    //Default message override
+    const char* MagicNumberNotInitialisedException::what(){
+        return "Invalid magic numbers: magic numbers not initialised";
+    }
 }
