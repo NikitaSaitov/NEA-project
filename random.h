@@ -1,11 +1,18 @@
 #ifndef RANDOM_H
 #define RANDOM_H
 
-using U64 = unsigned long long;
+extern "C" {
 
-void seedRandom();
+    using U64 = unsigned long long;
 
-U64 getRandom();
-U64 getRandomFewBits();
+    //Create a seed for the random numbers using the current time
+    void seedRandom();
+
+    //Get a random bitboard 
+    U64 getRandom();
+
+    //Ger a random bitboard with a few bits set
+    U64 getRandomFewBits();
+}
 
 #endif
