@@ -1,5 +1,5 @@
 void generatePawnMoves(MoveList& output, int color){
-
+ 
        int indexShift = (color == white) ? -8 : +8;
        int opposite = color ^ 1;
 
