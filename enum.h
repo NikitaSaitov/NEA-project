@@ -34,6 +34,12 @@ enum {
     blackPawn, blackKnight, blackBishop, blackRook, blackQueen, blackKing 
 };
 
+//Enumerate game phases
+enum {opening, endgame, middlegame};
+
+//Enumerate piece types 
+enum {pawn, knight, bishop, rook, queen, king};
+
 //Enumerate colours
 enum {white, black, both};
 
