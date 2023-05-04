@@ -9,6 +9,7 @@ extern "C" {
 
     enum {white, black, both};
 
+    //Initialise magic numbers
     void AttackTable::initialiseMagicNumbers(){
 
         //Loop over the squares 
@@ -24,6 +25,7 @@ extern "C" {
 
     }
 
+    //Initialise leaping piece attack tables
     void AttackTable::initialiseLeapingPieceTables(){
 
         //Loop over the squares 
@@ -39,6 +41,7 @@ extern "C" {
 
     }
 
+    //Initialise sliding piece attack tables
     void AttackTable::initialiseSlidingPieceTables(bool fBishop){
 
         //Check if the magic numbers are initialised
@@ -89,21 +92,25 @@ extern "C" {
 
     }
 
+    //Get pawn attacks
     const U64 AttackTable::getPawnAttacks(int sideToMove, int squareIndex){
         //Fetch the attacks
         return pawnAttacks[sideToMove][squareIndex];
     }
 
+    //Get knight attacks
     const U64 AttackTable::getKnightAttacks(int squareIndex){
         //Fetch the attacks
         return knightAttacks[squareIndex];
     }
 
+    //Get king attacks
     const U64 AttackTable::getKingAttacks(int squareIndex){
         //Fetch the attacks
         return kingAttacks[squareIndex];
     }
 
+    //Get bishop attacks
     const U64 AttackTable::getBishopAttacks(int squareIndex, U64 occupancy){
 
         //Convert the occupancy into the index of the attack table 
@@ -115,6 +122,7 @@ extern "C" {
         return bishopAttacks[squareIndex][occupancy];
     }
 
+    //Get rook attacks
     const U64 AttackTable::getRookAttacks(int squareIndex, U64 occupancy){
         
         //Convert the occupancy into the index of the attack table 
@@ -126,6 +134,7 @@ extern "C" {
         return rookAttacks[squareIndex][occupancy];
     }
 
+    //Get queen attacks
     const U64 AttackTable::getQueenAttacks(int squareIndex, U64 occupancy){
         //Logical AND on the bishop and rook attacks
         return getBishopAttacks(squareIndex, occupancy) | getRookAttacks(squareIndex, occupancy);
