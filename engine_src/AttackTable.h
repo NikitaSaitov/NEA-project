@@ -10,10 +10,10 @@ extern "C" {
             U64 knightAttacks[64];
             U64 kingAttacks[64];
 
-            //The maximum relevant bits for a bishop is 9, so the number of possible occupancy combinatons is 2^9 = 512
+            //The maximum number of relevant bits for a bishop is 9, so the number of possible occupancy combinatons is 2^9 = 512
             U64 bishopAttacks[64][512];
 
-            //The maximum relevant bits for a bishop is 11, so the number of possible occupancy combinations is 2^11 = 4096
+            //The maximum number of relevant bits for a bishop is 11, so the number of possible occupancy combinations is 2^11 = 4096
             U64 rookAttacks[64][4096];
 
             U64 bishopMasks[64];
