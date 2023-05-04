@@ -3,28 +3,34 @@
 
 #include <exception>
 
-class LSBOfEmptyBitboardException : public std::exception
-{
-public:
-    const char* what(); 
-};
+extern "C" {
 
-class HashKeysNotInitializedException : public std::exception
-{
-public:
-    const char* what(); 
-};
+    //Create a custon exception inheriting from the standart exception class
+    class HashKeysNotInitialisedException : public std::exception{
+        
+        public:
+        //Override the default message
+            const char* what(); 
+    };
 
-class CannotFindMagicNumberException : public std::exception
-{
-public:
-    const char* what(); 
-};
+    //Create a custon exception inheriting from the standart exception class
+    class CannotFindMagicNumberException : public std::exception{
 
-class MagicNumberNotInitializedException : public std::exception
-{
-public:
-    const char* what(); 
-};
+        public:
+        //Override the default message
+            const char* what(); 
+
+    };
+
+    //Create a custon exception inheriting from the standart exception class
+    class MagicNumberNotInitialisedException : public std::exception{
+        
+        public:
+        //Override the default message
+            const char* what(); 
+            
+    };
+
+}
 
 #endif
