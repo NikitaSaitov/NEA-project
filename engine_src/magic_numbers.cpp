@@ -165,7 +165,7 @@ extern "C" {
         return bitboard;
 
     }
-
+    
     //Find a magic number for the given sliding piece and a given 
     U64 findMagicNumber(int squareIndex, int relevantBits, bool fBishop){
 
@@ -201,7 +201,7 @@ extern "C" {
             //Get a random bitboard with a few bits set
             U64 magicNumber  = getRandomFewBits();
 
-            //Skip the magic number if the magic index will not be dense enoughxx`
+            //Skip the magic number if the magic index will not be dense enough
             if(getPopulationCount((attackMask * magicNumber) & 0xFF00000000000000) < 6){
                 continue;
             }
@@ -209,9 +209,10 @@ extern "C" {
             //Reset the array of used attacks
             memset(usedAttacks, 0, sizeof(usedAttacks));
 
-            bool fFound;
+            int index;
+            bool fFail;
 
-            for(int index = 0, fFound = true; fFound && index < maxOccupancyIndex; index++){
+            for(index = 0, fFail = false; !fFail && index < maxOccupancyIndex; index++){
 
                 //Generate the magic number and destroy the garbage bits
                 int magicIndex = (int)((occupancies[index] * magicNumber) >> (64 - relevantBits));
@@ -222,13 +223,13 @@ extern "C" {
                     usedAttacks[magicIndex] = attacks[index];
                 //If the magicIndex does not map the occupancy to the attacks
                 }else if(usedAttacks[magicIndex] != attacks[index]){
-                    fFound = false;
+                    fFail = true;
                 }
 
             }
 
             //If magicIdex works correctly
-            if(fFound){
+            if(!fFail){
                 //Return the magic number
                 return magicNumber;
             }

@@ -18,7 +18,6 @@ extern "C" {
 
             U64 bishopMasks[64];
             U64 rookMasks[64];
-
             U64 bishopMagics[64] = {0};
             U64 rookMagics[64] = {0};
 
@@ -43,22 +42,13 @@ extern "C" {
 
             }
 
-            //Get pawn attacks
+            //Get piece attacks
             const U64 getPawnAttacks(int sideToMove, int squareIndex);
-
-            //Get knight attacks
             const U64 getKnightAttacks(int squareIndex);
-
-            //Get king attacks
             const U64 getKingAttacks(int squareIndex);
-
-            //Get bishop attacks
             const U64 getBishopAttacks(int squareIndex, U64 occupancy);
-
-            //Get rook attacks
             const U64 getRookAttacks(int squareIndex, U64 occupancy);
-
-            //Get queen attacks
             const U64 getQueenAttacks(int squareIndex, U64 occupancy);      
     };
 }
+

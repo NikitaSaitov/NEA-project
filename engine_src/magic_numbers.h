@@ -20,5 +20,3 @@ extern "C" {
 
 #endif
 
-
-

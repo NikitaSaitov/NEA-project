@@ -810,242 +810,170 @@ extern "C" {
 
             }
 
-            //Commit a move
             int makeMove(int move){
 
-                //Declare temporary variables to preserve the state of the board
-                U64 tempBitboards[12];
-                memcpy(tempBitboards, bitboards, sizeof(tempBitboards));
-                int tempEnPassantSquareIndex = enPassantSquareIndex, tempHash = hashKey;
+                U64 tempBitboards[12], tempOccupancies[3];
+                U64 tempHash = hashKey;
+                int tempEnPassantSquareIndex = enPassantSquareIndex, tempCanCastle = canCastle;
 
-                //Decode the move
+                memcpy(tempBitboards, bitboards, sizeof(tempBitboards));
+                memcpy(tempOccupancies, occupancies, sizeof(tempOccupancies));
+
                 int piece = getPiece(move);
                 int startSquareIndex = getStartSquareIndex(move);
                 int targetSquareIndex = getTargetSquareIndex(move);
                 int promotedPiece = getPromotedPiece(move);
 
-                //Remove the piece from the strarting square
                 popBit(bitboards[piece], startSquareIndex);
-
-                //Set the piece on the target square
                 setBit(bitboards[piece], targetSquareIndex);
 
-                //Logical XOR to update the hash key of the position
                 hashKey ^= PIECE_KEYS[piece][startSquareIndex];
                 hashKey ^= PIECE_KEYS[piece][targetSquareIndex];
 
-                //If the move is a capture
                 if(isCapture(move)){
 
                     int startPiece, endPiece;
 
-                    //If it is white's turn
                     if(sideToMove == white){
 
-                        //Loop over the black pieces
                         startPiece = blackPawn;
                         endPiece = blackKing;
 
-                    //If its is black's turn
                     }else if(sideToMove == black){
 
-                        //Loop over the white pieces
                         startPiece = whitePawn;
                         endPiece = whiteKing;
                     }
 
-                    //Loop over the pieces
                     for(int currentPiece = startPiece; currentPiece <= endPiece; currentPiece++){
 
-                        //If an enemy piece has been found on the target square
                         if(getBit(bitboards[currentPiece], targetSquareIndex)){
 
-                            //Remove the bit from the bitboard of the attacked piece
                             popBit(bitboards[currentPiece], targetSquareIndex);
-
-                            //Logical XOR to update the hash key
                             hashKey ^= PIECE_KEYS[currentPiece][targetSquareIndex];
-
-                            //Break out of the loop
                             break;
 
                         }
-
                     }
-
                 }
 
-                //If the move is a promotion
                 if(promotedPiece){
 
-                    //If it is white's turn
                     if(sideToMove == white){
 
-                        //Remove the bit from the white pawn bitboard
                         popBit(bitboards[whitePawn], targetSquareIndex);
-
-                        //Logical XOR to update the hash key
                         hashKey ^= PIECE_KEYS[whitePawn][targetSquareIndex];
 
-                    //If it is black's turn
                     }else if(sideToMove == black){
 
-                        //Remove the bit from the black pawn bitboard
                         popBit(bitboards[blackPawn], targetSquareIndex);
-
-                        //Logical XOR to update the hash key
                         hashKey ^= PIECE_KEYS[blackPawn][targetSquareIndex];
                     }
 
-                    //Set the bit at the target square index on the promoted piece bitboard
                     setBit(bitboards[promotedPiece], targetSquareIndex);
-
-                    //Logical XOR to update the hash key
                     hashKey ^= PIECE_KEYS[promotedPiece][targetSquareIndex];
                 }
 
-                //If the move is an en passant capture
                 if(isEnPassant(move)){
 
-                    //If it is white's turn to move
                     if(sideToMove == white){
 
-                        //Remove the pawn behind (+8 offset indicates one row down)
                         popBit(bitboards[blackPawn], targetSquareIndex + 8);
-
-                        //Logical XOR to update the hash key
                         hashKey ^= PIECE_KEYS[blackPawn][targetSquareIndex + 8];
 
-                    //If it is black's turn to move
                     }else if(sideToMove == black){
 
-                        //Remove the pawn behind (-8 offset indicates one row above)
                         popBit(bitboards[whitePawn], targetSquareIndex - 8);
-
-                        //Logical XOR to update the hash key
                         hashKey ^= PIECE_KEYS[whitePawn][targetSquareIndex - 8];
                     }
-
                 }
 
-                //If the en passant was played
                 if(enPassantSquareIndex != NO_SQUARE_INDEX){
-                    //Logical XOR to update the hash key
                     hashKey ^= ENPASSANT_KEYS[enPassantSquareIndex];
                 }
 
-                //Reset the en passant square index
                 enPassantSquareIndex = NO_SQUARE_INDEX;
 
-                //If the move is a double pawn push
                 if(isDoublePawnPush(move)){
 
-                    //If the side to move is white
                     if(sideToMove == white){
-                        //Set the en passant square index one row behind (+8 offset indicates one row down)
-                        enPassantSquareIndex = targetSquareIndex + 8; 
-                    //If the side to move is black
+                        enPassantSquareIndex = targetSquareIndex + 8;
                     }else if(sideToMove == black){
-                        //Set the en passant square index on row above (-8 offset indicates one row above)
                         enPassantSquareIndex = targetSquareIndex - 8;
                     }
 
-                    //Logical XOR to update the hash key
                     hashKey ^= ENPASSANT_KEYS[enPassantSquareIndex];
-
                 }
 
-                //If the move is castling
                 if(isCastling(move)){
 
                     switch(targetSquareIndex){
 
-                        //If kingside castling was played by white
                         case(g1):
 
-                            //Move the white rook fron h1 to f1
                             popBit(bitboards[whiteRook], h1);
                             setBit(bitboards[whiteRook], f1);
 
-                            //Logical XOR to update the hash key
                             hashKey ^= PIECE_KEYS[whiteRook][h1];
                             hashKey ^= PIECE_KEYS[whiteRook][f1];
 
                             break;
 
-                        //If queenside castling was played by white
                         case(c1):
 
-                            //Move the white rook fron a1 to d1
                             popBit(bitboards[whiteRook], a1);
                             setBit(bitboards[whiteRook], d1);
 
-                            //Logical XOR to update the hash key
                             hashKey ^= PIECE_KEYS[whiteRook][a1];
                             hashKey ^= PIECE_KEYS[whiteRook][d1];
 
                             break;
 
-                        //If kingside castling was played by black
                         case(g8):
 
-                            //Move the white rook fron h8 to f8
                             popBit(bitboards[blackRook], h8);
                             setBit(bitboards[blackRook], f8);
 
-                            //Logical XOR to update the hash key
                             hashKey ^= PIECE_KEYS[blackRook][h8];
                             hashKey ^= PIECE_KEYS[blackRook][f8];
 
                             break;
-                        
-                        //If queenside castling was played by black
+
                         case(c8):
 
-                            //Move the white rook fron a8 to d8
                             popBit(bitboards[blackRook], a8);
                             setBit(bitboards[blackRook], d8);
 
-                            //Logical XOR to update the hash key
                             hashKey ^= PIECE_KEYS[blackRook][a8];
                             hashKey ^= PIECE_KEYS[blackRook][d8];
 
                             break;
-
                     }
-
                 }
 
-                //If the king is in check after the move is played
-                if(isKingInCheck()){
+                hashKey ^= CASTLING_KEYS[canCastle];
 
-                    //Restore the board state
-                    memcpy(bitboards, tempBitboards, sizeof(tempBitboards));
-                    enPassantSquareIndex = tempEnPassantSquareIndex;
-                    hashKey = tempHash;
-
-                    //Indicate that the move is illegal
-                    return 0;
-                }
-
-                //Recalculate occupancy arrays
-                resetOcuupancies();
-                populateOccupancies();
-
-                //Logical AND to update the castle state depending on the move played
                 canCastle &= CASTLE_STATE[startSquareIndex];
                 canCastle &= CASTLE_STATE[targetSquareIndex];
 
-                //Logical XOR to update the hash key
                 hashKey ^= CASTLING_KEYS[canCastle];
 
-                //Pass a turn to the opposite colour
-                switchSideToMove();
+                resetOcuupancies();
+                populateOccupancies();
 
-                //Logical XOR to update the hash key
+                if(isKingInCheck()){
+
+                    memcpy(bitboards, tempBitboards, sizeof(tempBitboards));
+                    memcpy(occupancies, tempOccupancies, sizeof(tempOccupancies));
+                    enPassantSquareIndex = tempEnPassantSquareIndex;
+                    canCastle = tempCanCastle; 
+                    hashKey = tempHash;
+                    return 0;
+                }
+
+                switchSideToMove();
                 hashKey ^= SIDE_KEY;
-                
-                //Indicate that the move is legal
+
                 return 1;
             }
 
@@ -2180,9 +2108,10 @@ extern "C" {
     int main(){
 
         search(START_POSITION_FEN, 10);
+        cout << "\n";
+        
+        system("pause");
         return 0;
 
-    }
+    } 
 }
-
-//emcc engine_src/AttackTable.cpp engine_src/engine_exceptions.cpp engine_src/magic_numbers.cpp engine_src/main.cpp engine_src/masks.cpp engine_src/MoveList.cpp engine_src/random.cpp -s TOTAL_MEMORY=1024mb -s TOTAL_STACK=512mb -o wasm/main.html

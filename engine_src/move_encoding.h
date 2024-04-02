@@ -56,7 +56,7 @@ extern "C" {
     inline void printMove(int move){
         
         //Print the start square and the target square coordinates
-        std::cout << SQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(move)] << SQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(move)];
+        std::cout << ' ' << SQUARE_INDEX_TO_COORDINATES[getStartSquareIndex(move)] << SQUARE_INDEX_TO_COORDINATES[getTargetSquareIndex(move)];
 
         //If a piece was promoted
         if(getPromotedPiece(move)){ 
@@ -70,3 +70,4 @@ extern "C" {
 }
 
 #endif
+

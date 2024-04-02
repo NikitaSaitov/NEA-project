@@ -15,4 +15,5 @@ extern "C" {
     U64 getRandomFewBits();
 }
 
+
 #endif
