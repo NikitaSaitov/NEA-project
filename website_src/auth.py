@@ -15,6 +15,7 @@ def validate_input(string, size_lower, size_upper):
     return True
 
 def generate_salt(length):
+    print(os.urandom(length).hex())
     return os.urandom(length).hex()
 
 def hash_password(password):
